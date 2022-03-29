@@ -1,0 +1,7 @@
+itemGroup.tabGeopolitika=Geopolitika
+
+geopolitika.error.cp_placement_no_state=You must be a member of a state to claim territory.
+geopolitika.error.cp_placement_already_claimed=This block can not be placed on already claimed territory.
+geopolitika.error.cp_insufficient_state_authority=You do not have sufficient authority to modify your state's territorial claims.
+geopolitika.error.cp_break_other_state=This control point belongs to another state.
+geopolitika.error.cp_break_conflict_ongoing=A conflict is ongoing in this territory, you may not break the control point!

@@ -1,0 +1,16 @@
+[
+{
+  "modid": "geopolitika",
+  "name": "Geopolitika",
+  "description": "Geopolitics in Minecraft!",
+  "version": "${version}",
+  "mcversion": "${mcversion}",
+  "url": "",
+  "updateUrl": "",
+  "authorList": ["Kaktusz"],
+  "credits": "Kaktusz - Lead Dev.",
+  "logoFile": "",
+  "screenshots": [],
+  "dependencies": [ftblib, ftbutilities]
+}
+]
