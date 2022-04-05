@@ -51,7 +51,6 @@ public class StatesSavedData extends WorldSavedData {
 	public static void set(World world, StatesSavedData data) {
 		MapStorage storage = world.getMapStorage();
 		storage.setData(DATA_NAME, data);
-		Geopolitika.logger.info("Received sync package. Claimed chunks: " + data.chunkOwners.size());
 	}
 
 	public World getWorld() {
@@ -106,7 +105,16 @@ public class StatesSavedData extends WorldSavedData {
 		int newDeltaCx = chunkPos.x - newCx;
 		int newDeltaCz = chunkPos.z - newCz;
 		int newDistSq = newDeltaCx*newDeltaCx + newDeltaCz*newDeltaCz;
-		return newDistSq < currentDistSq;
+		boolean closer = newDistSq < currentDistSq;
+		if(!closer && world.isBlockLoaded(currentClaim)) {
+			//verify integrity of our data
+			TileEntity te = world.getTileEntity(currentClaim);
+			if(!(te instanceof TileEntityControlPoint)) {
+				return true; //bad data - allow overwrite
+			}
+		}
+
+		return closer;
 	}
 
 	@Override

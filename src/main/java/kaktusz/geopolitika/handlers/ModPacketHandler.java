@@ -47,7 +47,6 @@ public class ModPacketHandler {
 			unsyncedStatesDataWorlds.remove(e.world);
 			StatesSavedDataSyncPacket syncPacket = new StatesSavedDataSyncPacket(StatesSavedData.get(e.world));
 			INSTANCE.sendToDimension(syncPacket, e.world.provider.getDimension());
-			Geopolitika.logger.info("Sending sync packet!");
 		}
 	}
 

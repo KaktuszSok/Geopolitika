@@ -1,8 +1,6 @@
 package kaktusz.geopolitika.commands;
 
 import mcp.MethodsReturnNonnullByDefault;
-import net.minecraft.util.text.Style;
-import net.minecraft.util.text.TextFormatting;
 
 import javax.annotation.ParametersAreNonnullByDefault;
 import java.util.Arrays;
@@ -17,6 +15,7 @@ public class CmdRegion extends CommandRoot {
 		addSubcommand(new CmdRegionInfo("info", CommandPermissions.ENTITY));
 		addSubcommand(new CmdRegionRename("rename", CommandPermissions.ENTITY));
 		addSubcommand(new CmdRegionOccupy("occupy", CommandPermissions.ENTITY));
+		addSubcommand(new CmdRegionTransfer("transfer", CommandPermissions.ENTITY));
 	}
 
 	@Override

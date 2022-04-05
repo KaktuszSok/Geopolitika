@@ -8,6 +8,9 @@ import kaktusz.geopolitika.handlers.GameplayEventHandler;
 import kaktusz.geopolitika.init.ModConfig;
 import kaktusz.geopolitika.states.StatesManager;
 import mcp.MethodsReturnNonnullByDefault;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityLiving;
+import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.nbt.NBTBase;
 import net.minecraft.nbt.NBTTagByte;
@@ -33,21 +36,36 @@ import java.util.Map;
 @ParametersAreNonnullByDefault
 public class TileEntityControlPoint extends TileEntity implements ITickable {
 
-	private static class OccupationProgress {
+	private class OccupationProgress {
 		private int warScore = 0;
 		private final BossInfoServer bossBar;
+		private final ForgeTeam occupiers;
 
-		public OccupationProgress(ForgeTeam state) {
+		public OccupationProgress(ForgeTeam occupiers) {
+			this.occupiers = occupiers;
 			ITextComponent title = new TextComponentString("")
-					.appendSibling(state.getTitle())
-					.appendText(" Occupation");
+					.appendSibling(occupiers.getTitle())
+					.appendText(" occupation of ")
+					.appendSibling(getRegionName(true));
 			bossBar = new BossInfoServer(title, BossInfo.Color.RED, BossInfo.Overlay.PROGRESS);
 			bossBar.setDarkenSky(true);
 		}
 
+		public int getWarScore() {
+			return warScore;
+		}
+
 		public void setWarScore(int warScore) {
 			this.warScore = warScore;
+		}
+
+		public void updateBossBar() {
 			bossBar.setPercent(Math.min(1.0f, warScore / 1000F));
+			ITextComponent title = new TextComponentString("")
+					.appendSibling(occupiers.getTitle())
+					.appendText(" occupation of ")
+					.appendSibling(getRegionName(true));
+			bossBar.setName(title);
 		}
 	}
 
@@ -56,8 +74,8 @@ public class TileEntityControlPoint extends TileEntity implements ITickable {
 	private static final String REGION_NAME_NBT_TAG = Geopolitika.MODID + ":regionName";
 	private static final String WAR_SCORES_NBT_TAG = Geopolitika.MODID + ":warScores";
 	protected static final Style REGION_NAME_STYLE = new Style().setColor(TextFormatting.BLUE);
-	public static final int OCCUPATION_DECAY_PER_SECOND = 3;
-	public static final int OCCUPATION_GAIN_PER_SECOND = 2;
+	public static final int OCCUPATION_DECAY_PER_SECOND = 30;
+	public static final int OCCUPATION_GAIN_PER_SECOND = 20;
 
 	private short ownerUid = 0;
 	private ForgeTeam ownerCache;
@@ -123,24 +141,45 @@ public class TileEntityControlPoint extends TileEntity implements ITickable {
 
 	@Override
 	public void update() {
-		if(world.getWorldTime() % 20 != 0) //tick once per second
+		if(world.isRemote || world.getWorldTime() % 20 != 0) //tick once per second
 			return;
 
 		if(occupierWarScores.isEmpty())
 			return;
 
+		//inefficient but fuck it
+		for (EntityPlayerMP player : world.getMinecraftServer().getPlayerList().getPlayers()) {
+			if(isEntityInRegion(player)) {
+				for (OccupationProgress progress : occupierWarScores.values()) {
+					progress.bossBar.addPlayer(player);
+				}
+			} else {
+				for (OccupationProgress progress : occupierWarScores.values()) {
+					progress.bossBar.removePlayer(player);
+				}
+			}
+		}
+
 		STATES_LOOP:for (Short stateId : occupierWarScores.keySet()) {
 			ForgeTeam state = StatesManager.getStateFromUid(stateId);
 			for (EntityPlayerMP member : state.getOnlineMembers()) {
-				if(member.world == world && member.dimension == world.provider.getDimension()
-				&& pos.equals(StatesManager.getChunkControlPointPos(member.getPosition(), member.world))) { //member is in our region
+				if(isEntityInRegion(member)) { //at least one member is in our region - the team shall gain war score
 					addWarScore(stateId, OCCUPATION_GAIN_PER_SECOND);
 					continue STATES_LOOP;
 				}
 			}
 
-			addWarScore(stateId, -OCCUPATION_DECAY_PER_SECOND);
+			addWarScore(stateId, -OCCUPATION_DECAY_PER_SECOND); //no members in region - the team shall lose war score
 		}
+
+		for (OccupationProgress progress : occupierWarScores.values()) {
+			progress.updateBossBar();
+		}
+	}
+
+	public boolean isEntityInRegion(EntityLivingBase entity) {
+		return entity.isEntityAlive() && entity.world == world && entity.dimension == world.provider.getDimension()
+				&& pos.equals(StatesManager.getChunkControlPointPos(entity.getPosition(), entity.getEntityWorld()));
 	}
 
 	public void claimChunks(boolean conflict) {
@@ -160,7 +199,7 @@ public class TileEntityControlPoint extends TileEntity implements ITickable {
 				int cx = (pos.getX() >> 4) + x;
 				int cz = (pos.getZ() >> 4) + z;
 				if(conflict && StatesManager.getChunkControlPointPos(cx, cz, world) != null) {
-					continue; //starting a conflict should not change regional borders
+					continue; //starting a conflict should not change other region's borders
 				}
 				if(!StatesManager.canStateClaimChunk(getOwner(), cx, cz, world)) {
 					continue; //chunk is claimed by a different state
@@ -249,14 +288,15 @@ public class TileEntityControlPoint extends TileEntity implements ITickable {
 
 
 	public void addWarScore(short stateId, int amount) {
-		OccupationProgress progress = occupierWarScores.computeIfAbsent(stateId, id -> new OccupationProgress(StatesManager.getStateFromUid(id)));
-		int warScore = occupierWarScores.getOrDefault(stateId, ;
+		OccupationProgress progress = occupierWarScores.computeIfAbsent(stateId,
+				id -> new OccupationProgress(StatesManager.getStateFromUid(id)));
+		int warScore = progress.warScore;
 		warScore += amount;
 		if(warScore >= 1000) {
 			capitulate(stateId);
 			return;
 		}
-		occupierWarScores.put(stateId, Math.max(warScore, 0));
+		progress.setWarScore(Math.max(warScore, 0));
 		markDirty();
 		if(warScore < 0 && checkIfOccupiersLost()) {
 			repelOccupation();
@@ -264,24 +304,45 @@ public class TileEntityControlPoint extends TileEntity implements ITickable {
 	}
 
 	public int getWarScore(ForgeTeam state) {
-		return occupierWarScores.getOrDefault(state.getUID(), 0);
+		OccupationProgress progress = occupierWarScores.get(state.getUID());
+		if(progress == null)
+			return 0;
+		return progress.warScore;
 	}
 
 	private void clearWarScores() {
+		for (OccupationProgress progress : occupierWarScores.values()) {
+			if(progress != null) {
+				//clear boss bar for all players who see it
+				for (EntityPlayerMP playerMP : progress.bossBar.getPlayers().toArray(new EntityPlayerMP[0])) {
+					progress.bossBar.removePlayer(playerMP);
+				}
+			}
+		}
 		occupierWarScores.clear();
 		markDirty();
 	}
 
+	public boolean isBeingOccupiedBy(ForgeTeam state) {
+		return occupierWarScores.containsKey(state.getUID());
+	}
+
 	public void removeOccupier(short stateId) {
-		occupierWarScores.remove(stateId);
+		OccupationProgress removed = occupierWarScores.remove(stateId);
+		if(removed != null) {
+			//clear boss bar for all players who see it
+			for (EntityPlayerMP playerMP : removed.bossBar.getPlayers().toArray(new EntityPlayerMP[0])) {
+				removed.bossBar.removePlayer(playerMP);
+			}
+		}
 		markDirty();
 		if(occupierWarScores.isEmpty())
 			endConflict();
 	}
 
 	protected boolean checkIfOccupiersLost() {
-		for (Map.Entry<Short, Integer> entry : occupierWarScores.entrySet()) {
-			if(entry.getValue() > 0) {
+		for (Map.Entry<Short, OccupationProgress> entry : occupierWarScores.entrySet()) {
+			if(entry.getValue().warScore > 0) {
 				return false;
 			}
 		}
@@ -329,7 +390,7 @@ public class TileEntityControlPoint extends TileEntity implements ITickable {
 		compound.setString(REGION_NAME_NBT_TAG, regionName == null ? "" : regionName);
 		NBTTagList warScoresTag = new NBTTagList();
 		for (Short stateId : occupierWarScores.keySet()) {
-			int warScore = occupierWarScores.get(stateId);
+			int warScore = occupierWarScores.get(stateId).warScore;
 			if(warScore == 0)
 				continue;
 
@@ -359,7 +420,9 @@ public class TileEntityControlPoint extends TileEntity implements ITickable {
 				NBTTagCompound occupierTag = warScoresTag.getCompoundTagAt(i);
 				short id = occupierTag.getShort("id");
 				int score = occupierTag.getInteger("score");
-				occupierWarScores.put(id, score);
+				OccupationProgress progress = new OccupationProgress(StatesManager.getStateFromUid(id));
+				progress.setWarScore(score);
+				occupierWarScores.put(id, progress);
 			}
 		}
 
