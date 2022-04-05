@@ -25,6 +25,7 @@ import net.minecraftforge.event.world.BlockEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.minecraftforge.fml.common.gameevent.TickEvent;
 
 import java.util.*;
 
@@ -37,8 +38,9 @@ public class GameplayEventHandler {
 			new Style().setColor(TextFormatting.WHITE)
 	);
 
-	public static Set<TileEntityControlPoint> loadedControlPoints = new HashSet<>();
-	private static Map<EntityPlayerMP, String> playerLastRegions = new HashMap<>();
+	public static final Set<TileEntityControlPoint> loadedControlPoints = new HashSet<>();
+	private static final Map<EntityPlayerMP, String> playerLastRegions = new HashMap<>();
+	public static final Map<ChunkDimPos, ClaimedChunk> pendingChunkClaims = new HashMap<>();
 
 	@SubscribeEvent
 	public static void blockPlaced(BlockEvent.EntityPlaceEvent e) {
@@ -105,11 +107,16 @@ public class GameplayEventHandler {
 	@SubscribeEvent(priority = EventPriority.HIGH)
 	public static void onTeamDeleted(ForgeTeamDeletedEvent e) {
 		for (TileEntityControlPoint loadedControlPoint : loadedControlPoints) {
-			if(loadedControlPoint.getOwner().equalsTeam(e.getTeam())) {
-				loadedControlPoint.setOwner(null); //remove owner and unclaim chunks
+			if(!loadedControlPoint.isInvalid() && loadedControlPoint.getOwner().equalsTeam(e.getTeam())) {
+				TileEntityControlPoint.OccupationProgress winner = loadedControlPoint.getWinningOccupier();
+				if(winner != null) {
+					loadedControlPoint.capitulate(winner.getOccupiers().getUID()); //capitulate to state with highest war score
+				}
+				else {
+					loadedControlPoint.setOwner(null); //remove owner and unclaim chunks
+				}
 			}
 		}
-		loadedControlPoints.clear();
 
 		StatesSavedData savedDataReference = null;
 		OptionalInt savedDataReferenceDim = OptionalInt.empty();
@@ -131,6 +138,20 @@ public class GameplayEventHandler {
 				savedDataReferenceDim = OptionalInt.of(pos.dim);
 			}
 			savedDataReference.removeChunkControlPoint(pos.getChunkPos());
+		}
+	}
+
+	@SubscribeEvent(priority = EventPriority.HIGH)
+	public static void onServerTick(TickEvent.ServerTickEvent e) {
+		if (e.phase == TickEvent.Phase.START)
+		{
+			if (ClaimedChunks.isActive())
+			{
+				for (Map.Entry<ChunkDimPos, ClaimedChunk> pending : pendingChunkClaims.entrySet()) {
+					ClaimedChunks.instance.addChunk(pending.getValue());
+				}
+				pendingChunkClaims.clear();
+			}
 		}
 	}
 }

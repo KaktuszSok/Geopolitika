@@ -10,6 +10,7 @@ import net.minecraft.command.PlayerNotFoundException;
 import net.minecraft.command.WrongUsageException;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.server.MinecraftServer;
+import org.apache.commons.lang3.time.DurationFormatUtils;
 
 public class CmdRegionOccupy extends Subcommand {
 	public CmdRegionOccupy(String name, CommandPermissions permissionLevel) {
@@ -35,6 +36,11 @@ public class CmdRegionOccupy extends Subcommand {
 
 		if(playerState.equalsTeam(controlPoint.getOwner())) {
 			throw new CommandException(MessageUtils.getCommandErrorKey("friendly_territory"));
+		}
+
+		long cooldownTimeLeft = controlPoint.getOccupyCooldownTimeLeft();
+		if(cooldownTimeLeft > 0) {
+			throw new CommandException(MessageUtils.getCommandErrorKey("region_in_cooldown"), DurationFormatUtils.formatDurationHMS(cooldownTimeLeft));
 		}
 
 		controlPoint.beginOccupation(playerState);

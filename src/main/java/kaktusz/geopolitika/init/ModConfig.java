@@ -10,4 +10,19 @@ public class ModConfig {
 					 "Only applies to newly placed control points."})
 	@Config.RangeInt(min=0, max=32)
 	public static byte controlPointClaimRadius = 4;
+
+	@Config.RangeInt(min=0, max=1000)
+	public static int warScoreOccupationGain = 2;
+	@Config.RangeInt(min=0, max=1000)
+	public static int warScoreDecay = 3;
+	@Config.RangeInt(min=0, max=1000)
+	public static int warScoreKillGain = 100;
+	@Config.RangeInt(min=0, max=1000)
+	public static int warScoreDeathLoss = 100;
+	@Config.RangeInt(min=0, max=1000)
+	public static int warScoreStartingAmount = 100;
+
+	@Config.Comment("How many minutes between when a control point is taken over and when it can be attacked again.")
+	@Config.RangeInt(min=0)
+	public static int occupationCooldownOnCapitulate = 120;
 }

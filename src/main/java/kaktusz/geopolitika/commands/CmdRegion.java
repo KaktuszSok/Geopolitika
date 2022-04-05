@@ -16,6 +16,8 @@ public class CmdRegion extends CommandRoot {
 		addSubcommand(new CmdRegionRename("rename", CommandPermissions.ENTITY));
 		addSubcommand(new CmdRegionOccupy("occupy", CommandPermissions.ENTITY));
 		addSubcommand(new CmdRegionTransfer("transfer", CommandPermissions.ENTITY));
+		addSubcommand(new CmdRegionCooldown("cooldown", CommandPermissions.OP));
+		addSubcommand(new CmdRegionWarScore("warscore", CommandPermissions.OP));
 	}
 
 	@Override

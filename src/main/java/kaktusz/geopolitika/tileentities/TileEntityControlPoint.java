@@ -7,9 +7,8 @@ import kaktusz.geopolitika.Geopolitika;
 import kaktusz.geopolitika.handlers.GameplayEventHandler;
 import kaktusz.geopolitika.init.ModConfig;
 import kaktusz.geopolitika.states.StatesManager;
+import kaktusz.geopolitika.util.MessageUtils;
 import mcp.MethodsReturnNonnullByDefault;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityLiving;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.nbt.NBTBase;
@@ -29,14 +28,16 @@ import net.minecraft.world.BossInfoServer;
 
 import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
 
+@SuppressWarnings("unused")
 @MethodsReturnNonnullByDefault
 @ParametersAreNonnullByDefault
 public class TileEntityControlPoint extends TileEntity implements ITickable {
 
-	private class OccupationProgress {
+	public class OccupationProgress {
 		private int warScore = 0;
 		private final BossInfoServer bossBar;
 		private final ForgeTeam occupiers;
@@ -59,6 +60,10 @@ public class TileEntityControlPoint extends TileEntity implements ITickable {
 			this.warScore = warScore;
 		}
 
+		public ForgeTeam getOccupiers() {
+			return occupiers;
+		}
+
 		public void updateBossBar() {
 			bossBar.setPercent(Math.min(1.0f, warScore / 1000F));
 			ITextComponent title = new TextComponentString("")
@@ -73,15 +78,20 @@ public class TileEntityControlPoint extends TileEntity implements ITickable {
 	private static final String CHUNKS_NBT_TAG = Geopolitika.MODID + ":chunks";
 	private static final String REGION_NAME_NBT_TAG = Geopolitika.MODID + ":regionName";
 	private static final String WAR_SCORES_NBT_TAG = Geopolitika.MODID + ":warScores";
+	private static final String OCCUPATION_COOLDOWN_TAG = Geopolitika.MODID + ":cooldownEnd";
 	protected static final Style REGION_NAME_STYLE = new Style().setColor(TextFormatting.BLUE);
-	public static final int OCCUPATION_DECAY_PER_SECOND = 30;
-	public static final int OCCUPATION_GAIN_PER_SECOND = 20;
+	public static final int OCCUPATION_DECAY_PER_SECOND = ModConfig.warScoreDecay;
+	public static final int OCCUPATION_GAIN_PER_SECOND = ModConfig.warScoreOccupationGain;
 
 	private short ownerUid = 0;
 	private ForgeTeam ownerCache;
 	private NBTTagList claimedChunks = new NBTTagList();
 	private String regionName = null;
 	private final Map<Short, OccupationProgress> occupierWarScores = new HashMap<>();
+	/**
+	 * Earliest time (as in System.currentTimeMillis()) when this control point can be the target of a new occupation.
+	 */
+	private long occupationCooldownEndTime = 0;
 
 	public ForgeTeam getOwner() {
 		if(ownerCache == null)
@@ -148,8 +158,9 @@ public class TileEntityControlPoint extends TileEntity implements ITickable {
 			return;
 
 		//inefficient but fuck it
+		//noinspection ConstantConditions
 		for (EntityPlayerMP player : world.getMinecraftServer().getPlayerList().getPlayers()) {
-			if(isEntityInRegion(player)) {
+			if(isEntityInRegion(player, false)) {
 				for (OccupationProgress progress : occupierWarScores.values()) {
 					progress.bossBar.addPlayer(player);
 				}
@@ -160,16 +171,32 @@ public class TileEntityControlPoint extends TileEntity implements ITickable {
 			}
 		}
 
+		//check if region is actively defended
+		boolean activelyDefended = false;
+		for (EntityPlayerMP member : getOwner().getOnlineMembers()) {
+			if(isEntityInRegion(member)) { //at least one defender is in our region - war score should not be gained by occupiers
+				activelyDefended = true;
+				break;
+			}
+		}
+
+		//check if region is actively occupied
 		STATES_LOOP:for (Short stateId : occupierWarScores.keySet()) {
 			ForgeTeam state = StatesManager.getStateFromUid(stateId);
 			for (EntityPlayerMP member : state.getOnlineMembers()) {
-				if(isEntityInRegion(member)) { //at least one member is in our region - the team shall gain war score
-					addWarScore(stateId, OCCUPATION_GAIN_PER_SECOND);
+				if(isEntityInRegion(member)) { //at least one member is in our region - the state's war score shall not decay
+					if(!activelyDefended) { //no defenders in region - the state shall gain war score
+						addWarScore(stateId, OCCUPATION_GAIN_PER_SECOND);
+						if (occupierWarScores.isEmpty())
+							return;
+					}
 					continue STATES_LOOP;
 				}
 			}
 
-			addWarScore(stateId, -OCCUPATION_DECAY_PER_SECOND); //no members in region - the team shall lose war score
+			addWarScore(stateId, -OCCUPATION_DECAY_PER_SECOND); //no members in region - the state shall lose war score
+			if(occupierWarScores.isEmpty())
+				return;
 		}
 
 		for (OccupationProgress progress : occupierWarScores.values()) {
@@ -178,7 +205,12 @@ public class TileEntityControlPoint extends TileEntity implements ITickable {
 	}
 
 	public boolean isEntityInRegion(EntityLivingBase entity) {
-		return entity.isEntityAlive() && entity.world == world && entity.dimension == world.provider.getDimension()
+		return isEntityInRegion(entity, true);
+	}
+	public boolean isEntityInRegion(EntityLivingBase entity, boolean mustBeAlive) {
+		return (!mustBeAlive || entity.isEntityAlive())
+				&& entity.world == world
+				&& entity.dimension == world.provider.getDimension()
 				&& pos.equals(StatesManager.getChunkControlPointPos(entity.getPosition(), entity.getEntityWorld()));
 	}
 
@@ -267,7 +299,10 @@ public class TileEntityControlPoint extends TileEntity implements ITickable {
 	}
 
 	public void beginOccupation(ForgeTeam occupiers) {
-		if(!occupiers.isValid() || occupiers.equalsTeam(getOwner()) || occupierWarScores.containsKey(occupiers.getUID()))
+		if(getOccupyCooldownTimeLeft() > 0 //in cooldown
+				|| !occupiers.isValid() //invalid state
+				|| occupiers.equalsTeam(getOwner()) //same state
+				|| occupierWarScores.containsKey(occupiers.getUID())) //already occupying
 			return;
 
 		ITextComponent message = new TextComponentString("")
@@ -275,11 +310,12 @@ public class TileEntityControlPoint extends TileEntity implements ITickable {
 				.appendText(" has began an occupation of ")
 				.appendSibling(getRegionName(true))
 				.appendText("!");
-		world.getMinecraftServer().getPlayerList().sendMessage(message);
+		//noinspection ConstantConditions
+		MessageUtils.broadcastImportantMessage(world.getMinecraftServer(), message);
 		if(!isConflictOngoing()) {
 			beginConflict();
 		}
-		addWarScore(occupiers, OCCUPATION_DECAY_PER_SECOND);
+		addWarScore(occupiers, ModConfig.warScoreStartingAmount);
 	}
 
 	public void addWarScore(ForgeTeam state, int amount) {
@@ -327,6 +363,16 @@ public class TileEntityControlPoint extends TileEntity implements ITickable {
 		return occupierWarScores.containsKey(state.getUID());
 	}
 
+	/**
+	 * Gets the occupier with the most war score, if any
+	 */
+	@Nullable
+	public OccupationProgress getWinningOccupier() {
+		if(occupierWarScores.isEmpty())
+			return null;
+		return occupierWarScores.values().stream().max(Comparator.comparingInt(o -> o.warScore)).get();
+	}
+
 	public void removeOccupier(short stateId) {
 		OccupationProgress removed = occupierWarScores.remove(stateId);
 		if(removed != null) {
@@ -354,10 +400,12 @@ public class TileEntityControlPoint extends TileEntity implements ITickable {
 				.appendSibling(getRegionName(true))
 				.appendText(" has capitulated to ")
 				.appendSibling(StatesManager.getStateFromUid(winningState).getCommandTitle());
-		world.getMinecraftServer().getPlayerList().sendMessage(message);
+		//noinspection ConstantConditions
+		MessageUtils.broadcastImportantMessage(world.getMinecraftServer(), message);
 		clearWarScores();
 		setOwner(winningState);
 		endConflict();
+		setOccupationCooldown(ModConfig.occupationCooldownOnCapitulate);
 	}
 
 	/**
@@ -369,7 +417,7 @@ public class TileEntityControlPoint extends TileEntity implements ITickable {
 				.appendSibling(new TextComponentString(" has resisted occupation by "));
 		Short[] occupiers = occupierWarScores.keySet().toArray(new Short[0]);
 		for (int i = 0; i < occupiers.length; i++) {
-			if(i > 0) {
+			if (i > 0) {
 				if (i == occupiers.length - 1) {
 					message.appendSibling(new TextComponentString(" and "));
 				} else {
@@ -378,9 +426,18 @@ public class TileEntityControlPoint extends TileEntity implements ITickable {
 			}
 			message.appendSibling(StatesManager.getStateFromUid(occupiers[i]).getCommandTitle());
 		}
-		world.getMinecraftServer().getPlayerList().sendMessage(message);
+		//noinspection ConstantConditions
+		MessageUtils.broadcastImportantMessage(world.getMinecraftServer(), message);
 
 		endConflict();
+	}
+
+	public void setOccupationCooldown(int cooldownMinutes) {
+		occupationCooldownEndTime = System.currentTimeMillis() + (long) cooldownMinutes*60*1000;
+	}
+
+	public long getOccupyCooldownTimeLeft() {
+		return occupationCooldownEndTime - System.currentTimeMillis();
 	}
 
 	@Override
@@ -388,6 +445,7 @@ public class TileEntityControlPoint extends TileEntity implements ITickable {
 		compound.setShort(OWNER_NBT_TAG, ownerUid);
 		compound.setTag(CHUNKS_NBT_TAG, claimedChunks);
 		compound.setString(REGION_NAME_NBT_TAG, regionName == null ? "" : regionName);
+		compound.setLong(OCCUPATION_COOLDOWN_TAG, occupationCooldownEndTime);
 		NBTTagList warScoresTag = new NBTTagList();
 		for (Short stateId : occupierWarScores.keySet()) {
 			int warScore = occupierWarScores.get(stateId).warScore;
@@ -413,6 +471,7 @@ public class TileEntityControlPoint extends TileEntity implements ITickable {
 		if(regionName.isEmpty())
 			regionName = null;
 		this.regionName = regionName;
+		occupationCooldownEndTime = compound.getLong(OCCUPATION_COOLDOWN_TAG);
 
 		if(compound.hasKey(WAR_SCORES_NBT_TAG)) {
 			NBTTagList warScoresTag = compound.getTagList(WAR_SCORES_NBT_TAG, 10);

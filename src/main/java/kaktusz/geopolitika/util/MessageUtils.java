@@ -1,9 +1,12 @@
 package kaktusz.geopolitika.util;
 
+import com.feed_the_beast.ftblib.lib.data.ForgeTeam;
 import kaktusz.geopolitika.Geopolitika;
+import kaktusz.geopolitika.states.StatesManager;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.network.play.server.SPacketTitle;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.text.*;
 
 import javax.annotation.Nonnull;
@@ -11,6 +14,17 @@ import javax.annotation.Nonnull;
 public class MessageUtils {
 	public static final Style ERROR_STYLE = new net.minecraft.util.text.Style().setColor(TextFormatting.RED);
 	private static final TextComponentString EMPTY_STRING = new TextComponentString("");
+	private static final ITextComponent MESSAGE_PREFIX = new TextComponentString("[")
+			.setStyle(new Style().setColor(TextFormatting.GRAY))
+			.appendSibling(new TextComponentString(Geopolitika.NAME).setStyle(new Style().setColor(TextFormatting.DARK_AQUA)))
+			.appendText("] ");
+	private static final ITextComponent IMPORTANT_PREFIX = new TextComponentString("-------- [")
+			.setStyle(new Style().setColor(TextFormatting.GRAY))
+			.appendSibling(new TextComponentString(Geopolitika.NAME).setStyle(new Style().setColor(TextFormatting.DARK_AQUA)))
+			.appendText("] --------\n");
+	private static final ITextComponent IMPORTANT_SUFFIX = new TextComponentString(
+			"\n"
+	).setStyle(new Style().setColor(TextFormatting.GRAY));
 
 	public static void sendErrorMessage(ICommandSender target, String errorTranslationKey, @Nonnull Object... args) {
 		target.sendMessage(
@@ -40,5 +54,44 @@ public class MessageUtils {
 		target.connection.sendPacket(subtitlePacket);
 		SPacketTitle titlePacket = new SPacketTitle(SPacketTitle.Type.TITLE, EMPTY_STRING);
 		target.connection.sendPacket(titlePacket);
+	}
+
+	public static void broadcastInfoMessage(MinecraftServer server, ITextComponent messageContent) {
+		ITextComponent message = new TextComponentString("")
+				.appendSibling(MESSAGE_PREFIX)
+				.appendSibling(messageContent);
+		server.getPlayerList().sendMessage(message);
+	}
+
+	public static void broadcastImportantMessage(MinecraftServer server, ITextComponent messageContent) {
+		ITextComponent message = new TextComponentString("")
+				.appendSibling(IMPORTANT_PREFIX)
+				.appendSibling(messageContent)
+				.appendSibling(IMPORTANT_SUFFIX);
+		server.getPlayerList().sendMessage(message);
+	}
+
+	public static void sendMessageToState(ForgeTeam state, ITextComponent messageContent) {
+		for (EntityPlayerMP member : state.getOnlineMembers()) {
+			sendStateMessage(member, messageContent);
+		}
+	}
+
+	public static void sendStateMessage(EntityPlayerMP target, ITextComponent messageContent) {
+		ITextComponent stateMessagePrefix = new TextComponentString("[")
+				.setStyle(new Style().setColor(TextFormatting.GRAY))
+				.appendSibling(StatesManager.getPlayerState(target).getCommandTitle())
+				.appendText("] ");
+		ITextComponent message = new TextComponentString("")
+				.appendSibling(stateMessagePrefix)
+				.appendSibling(messageContent);
+		target.sendMessage(message);
+	}
+
+	public static void sendInfoMessage(ICommandSender target, ITextComponent messageContent) {
+		ITextComponent message = new TextComponentString("")
+				.appendSibling(MESSAGE_PREFIX)
+				.appendSibling(messageContent);
+		target.sendMessage(message);
 	}
 }

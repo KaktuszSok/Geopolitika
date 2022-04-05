@@ -6,16 +6,25 @@ geopolitika.error.cp_insufficient_state_authority=You do not have sufficient aut
 geopolitika.error.cp_break_other_state=This control point belongs to another state.
 geopolitika.error.cp_break_conflict_ongoing=A conflict is ongoing in this region, you may not break the control point!
 
+geopolitika.info.lose_war_score_death=%1$s has died: -%2$s war score in %3$s
+geopolitika.info.gain_war_score_kill=%1$s killed a defender: +%2$s war score in %3$s
+
 geopolitika.error.command.must_be_called_by_player=This command may only be called by a player.
 geopolitika.error.command.must_be_in_claimed_region=You must be standing in a claimed region to use this command.
 geopolitika.error.command.no_state=You must be a member of a state to do this.
 geopolitika.error.command.friendly_territory=You can not do this on friendly territory!
+geopolitika.error.command.region_in_cooldown=This region can not be occupied for another %s
 geopolitika.error.command.region_name_too_long=The region name you entered is too long.
 geopolitika.error.command.region_insufficient_authority=You do not have sufficient authority in this region's state to do this.
 geopolitika.error.command.region_conflict_ongoing=A conflict is ongoing in this region, you may not do this right now.
 geopolitika.error.command.specified_invalid_state=The state you specified is invalid.
+geopolitika.error.command.region_must_be_occupiable_by_specified_state=The region must be occupiable by the specified state.
 geopolitika.commands.region.info.usage=/region info
 geopolitika.commands.region.rename.usage=/region rename <name>
 geopolitika.commands.region.rename.success=Region has been renamed to "%s".
 geopolitika.commands.region.occupy.usage=/region occupy
 geopolitika.commands.region.transfer.usage=/region transfer <state>
+geopolitika.commands.region.cooldown.usage=/region cooldown <minutes>
+geopolitika.commands.region.cooldown.success=Control point's cooldown has been set to %s minutes.
+geopolitika.commands.region.warscore.usage=/region warscore <state> <amount to add>
+geopolitika.commands.region.warscore.success=%1$s war score added for state %2$s in %3$s.

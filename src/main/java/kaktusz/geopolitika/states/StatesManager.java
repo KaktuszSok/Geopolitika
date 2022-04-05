@@ -14,6 +14,7 @@ import com.feed_the_beast.ftbutilities.data.ClaimedChunks;
 import com.feed_the_beast.ftbutilities.data.FTBUtilitiesTeamData;
 import com.feed_the_beast.ftbutilities.events.chunks.ChunkModifiedEvent;
 import kaktusz.geopolitika.Geopolitika;
+import kaktusz.geopolitika.handlers.GameplayEventHandler;
 import kaktusz.geopolitika.tileentities.TileEntityControlPoint;
 import mcp.MethodsReturnNonnullByDefault;
 import net.minecraft.command.CommandTitle;
@@ -26,6 +27,8 @@ import net.minecraft.world.World;
 
 import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
+import java.util.Collection;
+import java.util.stream.Stream;
 
 /**
  * Manages nation-states, which are based on FTBLib's forge teams.
@@ -42,7 +45,6 @@ public class StatesManager {
 		Universe universe = Universe.get();
 		CONFLICT_ZONE_TEAM = universe.getTeam("conflict_zone");
 		if(CONFLICT_ZONE_TEAM.type == TeamType.SERVER) { //conflict zone team was already created
-			Geopolitika.logger.info("conflict zone team exists already");
 			return;
 		}
 		else if(CONFLICT_ZONE_TEAM.isValid()) { //team exists with our reserved name - we can not stand for this.
@@ -130,10 +132,10 @@ public class StatesManager {
 	 * Gets the owner of this chunk. For conflict zones, the owner is a special server-owned state.
 	 */
 	public static ForgeTeam getChunkOwner(int chunkX, int chunkZ, World world) {
-		ForgeTeam team = ClaimedChunks.instance.getChunkTeam(new ChunkDimPos(chunkX, chunkZ, world.provider.getDimension()));
-		if(team == null)
+		ClaimedChunk chunk = ClaimedChunks.instance.getChunk(new ChunkDimPos(chunkX, chunkZ, world.provider.getDimension()));
+		if(chunk == null || chunk.isInvalid())
 			return getNoneState();
-		return team;
+		return chunk.getTeam();
 	}
 
 	/**
@@ -199,10 +201,11 @@ public class StatesManager {
 		ForgeTeam owner = conflict ? get().CONFLICT_ZONE_TEAM : controlPoint.getOwner();
 		FTBUtilitiesTeamData teamData = FTBUtilitiesTeamData.get(owner);
 		ClaimedChunk claimed = new ClaimedChunk(new ChunkDimPos(cx, cz, world.provider.getDimension()), teamData);
-		ClaimedChunks.instance.addChunk(claimed);
+		GameplayEventHandler.pendingChunkClaims.put(claimed.getPos(), claimed);
 		new ChunkModifiedEvent.Claimed(claimed, null).post();
 
 		StatesSavedData.get(world).setChunkControlPoint(new ChunkPos(cx, cz), controlPoint.getPos());
+		Geopolitika.logger.info("claimed chunk for team " + owner);
 	}
 
 	/**
@@ -224,5 +227,9 @@ public class StatesManager {
 	 */
 	public static boolean isConflictTeam(ForgeTeam state) {
 		return state.equalsTeam(get().CONFLICT_ZONE_TEAM);
+	}
+
+	public static Stream<ForgeTeam> getAllStates() {
+		return Universe.get().getTeams().stream().filter(s -> !isConflictTeam(s));
 	}
 }

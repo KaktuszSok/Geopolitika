@@ -12,6 +12,7 @@ import net.minecraft.util.math.BlockPos;
 import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @ParametersAreNonnullByDefault
 @MethodsReturnNonnullByDefault
@@ -20,7 +21,6 @@ public class CommandRoot extends CommandBase {
 	private final String name;
 	public final CommandPermissions permissionLevel;
 	private final LinkedHashMap<String, Subcommand> subcommands = new LinkedHashMap<>();
-	private final List<String> tabCompletions = new ArrayList<>();
 
 	public CommandRoot(String name, CommandPermissions permissionLevel) {
 		this.name = name;
@@ -29,7 +29,6 @@ public class CommandRoot extends CommandBase {
 
 	public void addSubcommand(Subcommand sub) {
 		subcommands.put(sub.name, sub);
-		tabCompletions.add(sub.name);
 	}
 
 	@Override
@@ -75,7 +74,7 @@ public class CommandRoot extends CommandBase {
 
 		String subcommandName = args[0];
 		Subcommand sub = subcommands.get(subcommandName);
-		if(sub == null)
+		if(sub == null || !sub.permissionLevel.hasPermissions(sender, this))
 			throw new WrongUsageException(getUsage(sender), getUsageParameter(sender));
 
 		try {
@@ -86,15 +85,29 @@ public class CommandRoot extends CommandBase {
 	}
 
 	@Override
-	public List<String> getTabCompletions(MinecraftServer server, ICommandSender sender, String[] args, @Nullable BlockPos targetPos) {
+	public final List<String> getTabCompletions(MinecraftServer server, ICommandSender sender, String[] args, @Nullable BlockPos targetPos) {
+		if(args.length == 0)
+			return getPossibleTabCompletions(server, sender, args, targetPos);
+
+		return getPossibleTabCompletions(server, sender, args, targetPos)
+				.stream().filter(tc -> tc.startsWith(args[args.length-1])).collect(Collectors.toList());
+	}
+
+	protected List<String> getPossibleTabCompletions(MinecraftServer server, ICommandSender sender, String[] args, @Nullable BlockPos targetPos) {
 		if(args.length > 1) {
 			Subcommand sub = subcommands.get(args[0]);
-			if(sub == null)
+			if(sub == null || !sub.permissionLevel.hasPermissions(sender, this))
 				return Collections.emptyList();
 
 			return sub.getTabCompletions(server, sender, Arrays.copyOfRange(args, 1, args.length), targetPos);
 		}
 
+		List<String> tabCompletions = new ArrayList<>();
+		for (String subcommandName : subcommands.keySet()) {
+			if(subcommands.get(subcommandName).permissionLevel.hasPermissions(sender, this)) {
+				tabCompletions.add(subcommandName);
+			}
+		}
 		return tabCompletions;
 	}
 }
