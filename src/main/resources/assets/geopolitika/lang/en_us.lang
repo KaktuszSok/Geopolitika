@@ -4,4 +4,15 @@ geopolitika.error.cp_placement_no_state=You must be a member of a state to claim
 geopolitika.error.cp_placement_already_claimed=This block can not be placed on already claimed territory.
 geopolitika.error.cp_insufficient_state_authority=You do not have sufficient authority to modify your state's territorial claims.
 geopolitika.error.cp_break_other_state=This control point belongs to another state.
-geopolitika.error.cp_break_conflict_ongoing=A conflict is ongoing in this territory, you may not break the control point!
+geopolitika.error.cp_break_conflict_ongoing=A conflict is ongoing in this region, you may not break the control point!
+
+geopolitika.error.command.must_be_called_by_player=This command may only be called by a player.
+geopolitika.error.command.must_be_in_claimed_region=You must be standing in a claimed region to use this command.
+geopolitika.error.command.no_state=You must be a member of a state to do this.
+geopolitika.error.command.friendly_territory=You can not do this on friendly territory!
+geopolitika.error.command.region_name_too_long=The region name you entered is too long.
+geopolitika.error.command.region_insufficient_authority=You do not have sufficient authority in this region's state to do this.
+geopolitika.commands.region.info.usage=/region info
+geopolitika.commands.region.rename.usage=/region rename <name>
+geopolitika.commands.region.rename.success=Region has been renamed to "%s".
+geopolitika.commands.region.occupy.usage=/region occupy

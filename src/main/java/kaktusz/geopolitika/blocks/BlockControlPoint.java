@@ -1,5 +1,6 @@
 package kaktusz.geopolitika.blocks;
 
+import com.feed_the_beast.ftblib.lib.data.ForgeTeam;
 import kaktusz.geopolitika.Geopolitika;
 import kaktusz.geopolitika.init.ModBlocks;
 import kaktusz.geopolitika.states.StatesManager;
@@ -87,7 +88,7 @@ public class BlockControlPoint extends BlockBase implements ITileEntityProvider 
 				return false;
 			TileEntityControlPoint cp = (TileEntityControlPoint) te;
 			cp.setOwner(StatesManager.getPlayerState(player));
-			cp.claimChunks(cp.getOwner());
+			cp.claimChunks(false);
 		}
 		return true;
 	}
@@ -159,10 +160,17 @@ public class BlockControlPoint extends BlockBase implements ITileEntityProvider 
 			return false;
 		TileEntityControlPoint cp = (TileEntityControlPoint) te;
 
-		if(!cp.isConflictOngoing())
-			cp.beginConflict();
-		else
-			cp.endConflict();
+		EntityPlayerMP player = (EntityPlayerMP) playerIn;
+		if(!StatesManager.hasPlayerModifyClaimsAuthority(player))
+			return true;
+
+		ForgeTeam playerState = StatesManager.getPlayerState(player);
+		if(!cp.getOwner().isValid() && playerState.isValid()) {
+			cp.setOwner(playerState);
+			cp.claimChunks(false);
+		} else if(cp.getOwner().equalsTeam(playerState) && !cp.isConflictOngoing()) {
+			cp.claimChunks(false);
+		}
 
 		return true;
 	}

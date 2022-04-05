@@ -1,8 +1,11 @@
 package kaktusz.geopolitika;
 
+import kaktusz.geopolitika.handlers.ModPacketHandler;
 import kaktusz.geopolitika.handlers.RegistryHandler;
 import kaktusz.geopolitika.init.ModBlocks;
+import kaktusz.geopolitika.init.ModCommands;
 import kaktusz.geopolitika.integration.XaeroMinimapIntegration;
+import kaktusz.geopolitika.integration.XaeroWorldmapIntegration;
 import kaktusz.geopolitika.proxy.CommonProxy;
 import kaktusz.geopolitika.states.StatesManager;
 import net.minecraft.creativetab.CreativeTabs;
@@ -10,14 +13,12 @@ import net.minecraft.item.ItemStack;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.Mod.EventHandler;
 import net.minecraftforge.fml.common.SidedProxy;
-import net.minecraftforge.fml.common.event.FMLInitializationEvent;
-import net.minecraftforge.fml.common.event.FMLPostInitializationEvent;
-import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
-import net.minecraftforge.fml.common.event.FMLServerAboutToStartEvent;
+import net.minecraftforge.fml.common.event.*;
 import net.minecraftforge.fml.relauncher.Side;
 import org.apache.logging.log4j.Logger;
 
-@Mod(modid = Geopolitika.MODID, name = Geopolitika.NAME, version = Geopolitika.VERSION, dependencies = "required-after:ftblib;required-after:ftbutilities")
+@Mod(modid = Geopolitika.MODID, name = Geopolitika.NAME, version = Geopolitika.VERSION,
+        dependencies = "required-after:ftblib;required-after:ftbutilities;after:xaerominimap;after:xaeroworldmap")
 public class Geopolitika
 {
     public static final String MODID = "geopolitika";
@@ -50,12 +51,14 @@ public class Geopolitika
     public void init(FMLInitializationEvent event)
     {
         RegistryHandler.init(event);
+        ModPacketHandler.init();
     }
 
     @EventHandler
     public void postInit(FMLPostInitializationEvent event) {
         if(event.getSide() == Side.CLIENT) {
-            XaeroMinimapIntegration.init();
+            XaeroMinimapIntegration.postInit();
+            XaeroWorldmapIntegration.postInit();
         }
     }
 
@@ -63,5 +66,10 @@ public class Geopolitika
     public void onServerAboutToStart(FMLServerAboutToStartEvent event)
     {
         StatesManager.restart();
+    }
+
+    @Mod.EventHandler
+    public void onServerStarting(FMLServerStartingEvent event) {
+        ModCommands.onServerStart(event);
     }
 }

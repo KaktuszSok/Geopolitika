@@ -43,7 +43,7 @@ import java.lang.reflect.Field;
 import java.util.Iterator;
 
 public class XaeroMinimapIntegration {
-	public static void init() {
+	public static void postInit() {
 		MinimapInterface minimapInterface = XaeroMinimap.instance.getInterfaces().getMinimapInterface();
 		try {
 			Field fboRendererField = minimapInterface.getClass().getDeclaredField("minimapFBORenderer");
@@ -52,7 +52,6 @@ public class XaeroMinimapIntegration {
 					XaeroMinimap.instance, Minecraft.getMinecraft(), minimapInterface.getWaypointsGuiRenderer(), minimapInterface
 			);
 			fboRendererField.set(minimapInterface, rendererWithClaims);
-			Geopolitika.logger.info("Success!!!");
 		} catch (NoSuchFieldException | IllegalAccessException e) {
 			e.printStackTrace();
 		}
@@ -187,7 +186,7 @@ public class XaeroMinimapIntegration {
 										}
 									}
 								}
-								renderClaimOverlays(minimapSession, mchunk, drawX, drawZ);
+								renderClaimsOverlay(minimapSession, mchunk, drawX, drawZ);
 
 								GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
 							}
@@ -340,7 +339,7 @@ public class XaeroMinimapIntegration {
 			GL11.glPopMatrix();
 		}
 
-		protected void renderClaimOverlays(XaeroMinimapSession session, MinimapChunk mchunk, int drawX, int drawZ) {
+		protected void renderClaimsOverlay(XaeroMinimapSession session, MinimapChunk mchunk, int drawX, int drawZ) {
 			World world = session.getMinimapProcessor().mainWorld;
 			for(int t = 0; t < 16; ++t) {
 				MinimapTile tile = mchunk.getTile(t % 4, t / 4);
@@ -348,11 +347,9 @@ public class XaeroMinimapIntegration {
 					continue;
 				ForgeTeam owner = StatesManager.getChunkOwner(tile.getX(), tile.getZ(), world);
 				if (owner.isValid()) {
-					Color4I colour = owner.getColor().getColor();
 					int claimDrawX = drawX + 16 * (t % 4);
 					int claimDrawZ = drawZ + 16 * (t / 4);
-					Gui.drawRect(claimDrawX, claimDrawZ, claimDrawX + 16, claimDrawZ + 16,
-							ColourUtils.colourAsInt(colour.redi(), colour.greeni(), colour.bluei(), 100));
+					MinimapIntegrationHelper.drawChunkClaim(claimDrawX, claimDrawZ, owner, tile.getX(), tile.getZ(), world);
 				}
 			}
 		}
