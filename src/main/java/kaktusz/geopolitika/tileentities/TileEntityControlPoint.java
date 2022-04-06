@@ -135,18 +135,23 @@ public class TileEntityControlPoint extends TileEntity implements ITickable {
 
 	@Override
 	public void onChunkUnload() {
-		onRemoveFromWorld();
+		onRemoveFromLoadedWorld();
 		super.onChunkUnload();
 	}
 
 	@Override
 	public void invalidate() {
-		onRemoveFromWorld();
+		onRemoveFromLoadedWorld();
 		super.invalidate();
 	}
 
-	private void onRemoveFromWorld() {
+	private void onRemoveFromLoadedWorld() {
 		GameplayEventHandler.loadedControlPoints.remove(this);
+	}
+
+	public void onRemoveFromWorld() {
+		clearWarScores();
+		unclaimChunks();
 	}
 
 	@Override

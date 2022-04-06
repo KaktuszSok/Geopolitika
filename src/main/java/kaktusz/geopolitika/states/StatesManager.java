@@ -17,7 +17,6 @@ import kaktusz.geopolitika.Geopolitika;
 import kaktusz.geopolitika.handlers.GameplayEventHandler;
 import kaktusz.geopolitika.tileentities.TileEntityControlPoint;
 import mcp.MethodsReturnNonnullByDefault;
-import net.minecraft.command.CommandTitle;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
@@ -27,7 +26,6 @@ import net.minecraft.world.World;
 
 import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
-import java.util.Collection;
 import java.util.stream.Stream;
 
 /**

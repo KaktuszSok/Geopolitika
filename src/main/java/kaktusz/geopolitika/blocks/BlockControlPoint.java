@@ -144,7 +144,7 @@ public class BlockControlPoint extends BlockBase implements ITileEntityProvider 
 		{
 			TileEntityControlPoint cp = (TileEntityControlPoint)tileentity;
 			//InventoryUtils.dropInventoryItems(worldIn, pos, cp.inventory);
-			cp.unclaimChunks();
+			cp.onRemoveFromWorld();
 		}
 
 		super.breakBlock(worldIn, pos, state);
