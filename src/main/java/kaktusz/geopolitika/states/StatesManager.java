@@ -142,22 +142,22 @@ public class StatesManager {
 	 * If states are different, the chunk shouldn't be claimed by the new control point.
 	 */
 	public static boolean canControlPointClaimChunk(int cx, int cz, BlockPos controlPointPos, World world) {
-		return StatesSavedData.get(world).canControlPointClaimChunk(new ChunkPos(cx, cz), controlPointPos);
+		return ChunksSavedData.get(world).canControlPointClaimChunk(new ChunkPos(cx, cz), controlPointPos);
 	}
 
 	@Nullable
 	public static TileEntityControlPoint getChunkControlPoint(BlockPos pos, World world) {
-		return StatesSavedData.get(world).getChunkControlPoint(new ChunkPos(pos.getX() >> 4, pos.getZ() >> 4));
+		return ChunksSavedData.get(world).getChunkControlPoint(new ChunkPos(pos.getX() >> 4, pos.getZ() >> 4));
 	}
 
 	@Nullable
 	public static TileEntityControlPoint getChunkControlPoint(int cx, int cz, World world) {
-		return StatesSavedData.get(world).getChunkControlPoint(new ChunkPos(cx, cz));
+		return ChunksSavedData.get(world).getChunkControlPoint(new ChunkPos(cx, cz));
 	}
 
 	@Nullable
 	public static BlockPos getChunkControlPointPos(int cx, int cz, World world) {
-		return StatesSavedData.get(world).getChunkControlPointPos(new ChunkPos(cx, cz));
+		return ChunksSavedData.get(world).getChunkControlPointPos(new ChunkPos(cx, cz));
 	}
 
 	@Nullable
@@ -192,7 +192,7 @@ public class StatesManager {
 	public static void claimChunk(@Nullable TileEntityControlPoint controlPoint, boolean conflict, int cx, int cz, World world) {
 		if(controlPoint == null || !controlPoint.getOwner().isValid()) {
 			ClaimedChunks.instance.unclaimChunk(null, new ChunkDimPos(cx, cz, world.provider.getDimension()));
-			StatesSavedData.get(world).removeChunkControlPoint(new ChunkPos(cx, cz));
+			ChunksSavedData.get(world).removeChunkControlPoint(new ChunkPos(cx, cz));
 			return;
 		}
 
@@ -202,7 +202,7 @@ public class StatesManager {
 		GameplayEventHandler.pendingChunkClaims.put(claimed.getPos(), claimed);
 		new ChunkModifiedEvent.Claimed(claimed, null).post();
 
-		StatesSavedData.get(world).setChunkControlPoint(new ChunkPos(cx, cz), controlPoint.getPos());
+		ChunksSavedData.get(world).setChunkControlPoint(new ChunkPos(cx, cz), controlPoint.getPos());
 		Geopolitika.logger.info("claimed chunk for team " + owner);
 	}
 

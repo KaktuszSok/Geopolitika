@@ -1,12 +1,14 @@
-package kaktusz.geopolitika.commands;
+package kaktusz.geopolitika.commands.subcommands;
 
 import com.feed_the_beast.ftblib.lib.data.ForgeTeam;
+import kaktusz.geopolitika.commands.CommandAssertions;
+import kaktusz.geopolitika.commands.CommandPermissions;
 import kaktusz.geopolitika.states.StatesManager;
-import kaktusz.geopolitika.util.MessageUtils;
+import kaktusz.geopolitika.tileentities.TileEntityControlPoint;
 import net.minecraft.command.CommandException;
 import net.minecraft.command.ICommandSender;
-import net.minecraft.command.PlayerNotFoundException;
 import net.minecraft.command.WrongUsageException;
+import net.minecraft.entity.Entity;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.text.ITextComponent;
@@ -23,17 +25,14 @@ public class CmdRegionInfo extends Subcommand {
 	}
 
 	@Override
-	public void execute(MinecraftServer server, ICommandSender sender, String rootCommandName, String[] args) throws CommandException {
+	public void execute(MinecraftServer server, ICommandSender sender, String rootCommandTranslationKey, boolean adminMode, String[] args) throws CommandException {
 		if(args.length != 0)
 			throw new WrongUsageException("");
-		if(sender.getCommandSenderEntity() == null)
-			throw new PlayerNotFoundException(MessageUtils.getCommandErrorKey("must_be_called_by_player"));
 
-		BlockPos controlPointPos = StatesManager.getChunkControlPointPos(sender.getPosition(), sender.getEntityWorld());
-		if(controlPointPos == null) {
-			throw new CommandException(MessageUtils.getCommandErrorKey("must_be_in_claimed_region"));
-		}
-		ForgeTeam state = StatesManager.getChunkOwner(sender.getPosition(), sender.getEntityWorld());
+		Entity entity = CommandAssertions.senderMustBeEntity(sender);
+		TileEntityControlPoint controlPoint = CommandAssertions.entityMustBeInClaimedRegion(entity);
+		BlockPos controlPointPos = controlPoint.getPos();
+		ForgeTeam state = controlPoint.getOwner();
 
 		ITextComponent message = new TextComponentString("")
 				.appendSibling(new TextComponentString("Region ").setStyle(HEADING_STYLE))

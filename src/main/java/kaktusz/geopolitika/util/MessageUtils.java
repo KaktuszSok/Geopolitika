@@ -78,14 +78,18 @@ public class MessageUtils {
 	}
 
 	public static void sendStateMessage(EntityPlayerMP target, ITextComponent messageContent) {
-		ITextComponent stateMessagePrefix = new TextComponentString("[")
-				.setStyle(new Style().setColor(TextFormatting.GRAY))
-				.appendSibling(StatesManager.getPlayerState(target).getCommandTitle())
-				.appendText("] ");
+		ITextComponent stateMessagePrefix = getStateMessagePrefix(StatesManager.getPlayerState(target));
 		ITextComponent message = new TextComponentString("")
 				.appendSibling(stateMessagePrefix)
 				.appendSibling(messageContent);
 		target.sendMessage(message);
+	}
+
+	public static ITextComponent getStateMessagePrefix(ForgeTeam state) {
+		return new TextComponentString("[")
+				.setStyle(new Style().setColor(TextFormatting.GRAY))
+				.appendSibling(state.getCommandTitle())
+				.appendText("] ");
 	}
 
 	public static void sendInfoMessage(ICommandSender target, ITextComponent messageContent) {

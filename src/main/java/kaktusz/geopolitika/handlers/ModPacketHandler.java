@@ -2,8 +2,7 @@ package kaktusz.geopolitika.handlers;
 
 import kaktusz.geopolitika.Geopolitika;
 import kaktusz.geopolitika.networking.StatesSavedDataSyncPacket;
-import kaktusz.geopolitika.states.StatesSavedData;
-import mezz.jei.startup.PlayerJoinedWorldEvent;
+import kaktusz.geopolitika.states.ChunksSavedData;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.world.World;
 import net.minecraftforge.fml.common.Mod;
@@ -13,7 +12,6 @@ import net.minecraftforge.fml.common.gameevent.TickEvent;
 import net.minecraftforge.fml.common.network.NetworkRegistry;
 import net.minecraftforge.fml.common.network.simpleimpl.SimpleNetworkWrapper;
 import net.minecraftforge.fml.relauncher.Side;
-import net.minecraftforge.fml.relauncher.SideOnly;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -34,7 +32,7 @@ public class ModPacketHandler {
 				);
 	}
 
-	public static void onStatesDataMarkedDirty(StatesSavedData data) {
+	public static void onChunksDataMarkedDirty(ChunksSavedData data) {
 		unsyncedStatesDataWorlds.add(data.getWorld());
 	}
 
@@ -45,20 +43,26 @@ public class ModPacketHandler {
 
 		if(unsyncedStatesDataWorlds.contains(e.world)) {
 			unsyncedStatesDataWorlds.remove(e.world);
-			StatesSavedDataSyncPacket syncPacket = new StatesSavedDataSyncPacket(StatesSavedData.get(e.world));
+			StatesSavedDataSyncPacket syncPacket = new StatesSavedDataSyncPacket(ChunksSavedData.get(e.world));
 			INSTANCE.sendToDimension(syncPacket, e.world.provider.getDimension());
 		}
 	}
 
 	@SubscribeEvent
 	public static void onPlayerChangedDimension(PlayerEvent.PlayerChangedDimensionEvent e) {
-		StatesSavedDataSyncPacket syncPacket = new StatesSavedDataSyncPacket(StatesSavedData.get(e.player.world));
+		StatesSavedDataSyncPacket syncPacket = new StatesSavedDataSyncPacket(ChunksSavedData.get(e.player.world));
 		INSTANCE.sendTo(syncPacket, (EntityPlayerMP) e.player);
 	}
 
 	@SubscribeEvent
 	public static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent e) {
-		StatesSavedDataSyncPacket syncPacket = new StatesSavedDataSyncPacket(StatesSavedData.get(e.player.world));
+		StatesSavedDataSyncPacket syncPacket = new StatesSavedDataSyncPacket(ChunksSavedData.get(e.player.world));
+		INSTANCE.sendTo(syncPacket, (EntityPlayerMP) e.player);
+	}
+
+	@SubscribeEvent
+	public static void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent e) {
+		StatesSavedDataSyncPacket syncPacket = new StatesSavedDataSyncPacket(ChunksSavedData.get(e.player.world));
 		INSTANCE.sendTo(syncPacket, (EntityPlayerMP) e.player);
 	}
 }

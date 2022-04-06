@@ -1,6 +1,7 @@
-package kaktusz.geopolitika.commands;
+package kaktusz.geopolitika.commands.subcommands;
 
 import kaktusz.geopolitika.Geopolitika;
+import kaktusz.geopolitika.commands.CommandPermissions;
 import net.minecraft.command.CommandException;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.server.MinecraftServer;
@@ -25,11 +26,11 @@ public abstract class Subcommand {
 		this.permissionLevel = permissionLevel;
 	}
 
-	public abstract void execute(MinecraftServer server, ICommandSender sender, String rootCommandName, String[] args) throws CommandException;
+	public abstract void execute(MinecraftServer server, ICommandSender sender, String rootCommandTranslationKey, boolean adminMode, String[] args) throws CommandException;
 
-	protected void sendSuccessMessage(ICommandSender target, String rootCommandName, @Nonnull Object... args) {
+	protected void sendSuccessMessage(ICommandSender target, String rootCommandTranslationKey, @Nonnull Object... args) {
 		target.sendMessage(new TextComponentTranslation(
-				Geopolitika.MODID + ".commands." + rootCommandName + "." + this.name + ".success",
+				Geopolitika.MODID + ".commands." + rootCommandTranslationKey + "." + this.name + ".success",
 				args
 		).setStyle(BASE_MESSAGE_STYLE));
 	}

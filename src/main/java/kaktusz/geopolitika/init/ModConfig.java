@@ -25,4 +25,7 @@ public class ModConfig {
 	@Config.Comment("How many minutes between when a control point is taken over and when it can be attacked again.")
 	@Config.RangeInt(min=0)
 	public static int occupationCooldownOnCapitulate = 120;
+	@Config.Comment("How many minutes between when a control point is successfully defended and when the state can be attacked by the occupiers again.")
+	@Config.RangeInt(min=0)
+	public static int occupationCooldownOnDefend = 120;
 }

@@ -13,12 +13,15 @@ geopolitika.error.command.must_be_called_by_player=This command may only be call
 geopolitika.error.command.must_be_in_claimed_region=You must be standing in a claimed region to use this command.
 geopolitika.error.command.no_state=You must be a member of a state to do this.
 geopolitika.error.command.friendly_territory=You can not do this on friendly territory!
+geopolitika.error.command.state_in_cooldown=Your state can not attack %1$s for another %2$s
 geopolitika.error.command.region_in_cooldown=This region can not be occupied for another %s
+geopolitika.error.command.cant_occupy_offline_state=At least one member of %s must be online to begin an occupation of their region.
 geopolitika.error.command.region_name_too_long=The region name you entered is too long.
 geopolitika.error.command.region_insufficient_authority=You do not have sufficient authority in this region's state to do this.
 geopolitika.error.command.region_conflict_ongoing=A conflict is ongoing in this region, you may not do this right now.
 geopolitika.error.command.specified_invalid_state=The state you specified is invalid.
 geopolitika.error.command.region_must_be_occupiable_by_specified_state=The region must be occupiable by the specified state.
+
 geopolitika.commands.region.info.usage=/region info
 geopolitika.commands.region.rename.usage=/region rename <name>
 geopolitika.commands.region.rename.success=Region has been renamed to "%s".

@@ -7,10 +7,15 @@ import kaktusz.geopolitika.Geopolitika;
 import kaktusz.geopolitika.handlers.GameplayEventHandler;
 import kaktusz.geopolitika.init.ModConfig;
 import kaktusz.geopolitika.states.StatesManager;
+import kaktusz.geopolitika.states.ChunksSavedData;
+import kaktusz.geopolitika.states.StatesSavedData;
 import kaktusz.geopolitika.util.MessageUtils;
+import kaktusz.geopolitika.util.SoundUtils;
 import mcp.MethodsReturnNonnullByDefault;
+import net.minecraft.command.CommandException;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.init.SoundEvents;
 import net.minecraft.nbt.NBTBase;
 import net.minecraft.nbt.NBTTagByte;
 import net.minecraft.nbt.NBTTagCompound;
@@ -19,12 +24,14 @@ import net.minecraft.network.NetworkManager;
 import net.minecraft.network.play.server.SPacketUpdateTileEntity;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.ITickable;
+import net.minecraft.util.SoundEvent;
 import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.Style;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.BossInfo;
 import net.minecraft.world.BossInfoServer;
+import org.apache.commons.lang3.time.DurationFormatUtils;
 
 import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
@@ -75,17 +82,20 @@ public class TileEntityControlPoint extends TileEntity implements ITickable {
 	}
 
 	private static final String OWNER_NBT_TAG = Geopolitika.MODID + ":owner";
-	private static final String CHUNKS_NBT_TAG = Geopolitika.MODID + ":chunks";
 	private static final String REGION_NAME_NBT_TAG = Geopolitika.MODID + ":regionName";
 	private static final String WAR_SCORES_NBT_TAG = Geopolitika.MODID + ":warScores";
 	private static final String OCCUPATION_COOLDOWN_TAG = Geopolitika.MODID + ":cooldownEnd";
 	protected static final Style REGION_NAME_STYLE = new Style().setColor(TextFormatting.BLUE);
 	public static final int OCCUPATION_DECAY_PER_SECOND = ModConfig.warScoreDecay;
 	public static final int OCCUPATION_GAIN_PER_SECOND = ModConfig.warScoreOccupationGain;
+	private static final SoundEvent OCCUPATION_START_SOUND_ATTACKERS = SoundEvents.ENTITY_ENDERDRAGON_GROWL;
+	private static final SoundEvent OCCUPATION_START_SOUND_DEFENDERS = SoundEvents.ENTITY_WITHER_AMBIENT;
+	private static final SoundEvent OCCUPATION_WIN_SOUND = SoundEvents.ENTITY_WITHER_DEATH;
+	private static final SoundEvent OCCUPATION_OTHER_WON_SOUND = SoundEvents.ENTITY_WITHER_HURT;
+	private static final SoundEvent OCCUPATION_LOSE_SOUND = SoundEvents.ENTITY_WITHER_SPAWN;
 
 	private short ownerUid = 0;
 	private ForgeTeam ownerCache;
-	private NBTTagList claimedChunks = new NBTTagList();
 	private String regionName = null;
 	private final Map<Short, OccupationProgress> occupierWarScores = new HashMap<>();
 	/**
@@ -127,7 +137,8 @@ public class TileEntityControlPoint extends TileEntity implements ITickable {
 		Universe.get().scheduleTask(TimeType.TICKS, 1, (u) -> {
 			if(!getOwner().isValid()) { //owning state was deleted - unclaim the territory
 				unclaimChunks();
-			} else if(!StatesManager.getChunkOwner(pos, world).isValid()) { //fix chunks being unclaimed externally
+			} else if(!StatesManager.getChunkOwner(pos, world).isValid()
+					|| StatesManager.getChunkControlPointPos(pos, world) == null) { //fix chunks being unclaimed externally
 				claimChunks(false);
 			}
 		});
@@ -228,7 +239,6 @@ public class TileEntityControlPoint extends TileEntity implements ITickable {
 			return;
 		}
 
-		claimedChunks = new NBTTagList();
 		final byte radius = ModConfig.controlPointClaimRadius;
 		for (byte x = (byte)-radius; x <= radius; x++) {
 			for (byte z = (byte)-radius; z <= radius; z++) {
@@ -250,44 +260,29 @@ public class TileEntityControlPoint extends TileEntity implements ITickable {
 					currentControlPoint.unclaimChunk(cx, cz);
 				}
 
-				NBTTagCompound chunkClaimTag = new NBTTagCompound();
-				chunkClaimTag.setTag("x", new NBTTagByte(x));
-				chunkClaimTag.setTag("z", new NBTTagByte(z));
-				claimedChunks.appendTag(chunkClaimTag);
-
 				StatesManager.claimChunk(this, conflict, cx, cz, world);
 			}
 		}
 	}
 
 	public void unclaimChunks() {
-		for (NBTBase claimedChunk : claimedChunks) {
-			byte xOffset = ((NBTTagCompound)claimedChunk).getByte("x");
-			byte zOffset = ((NBTTagCompound)claimedChunk).getByte("z");
-			int cx = (pos.getX() >> 4) + xOffset;
-			int cz = (pos.getZ() >> 4) + zOffset;
+		final byte radius = ModConfig.controlPointClaimRadius;
+			for (byte x = (byte)-radius; x <= radius; x++) {
+				for (byte z = (byte)-radius; z <= radius; z++) {
+				int cx = (pos.getX() >> 4) + x;
+				int cz = (pos.getZ() >> 4) + z;
 
-			if(!pos.equals(StatesManager.getChunkControlPointPos(cx, cz, world))) {
-				continue; //incorrect owner - something went weird
+				if(!pos.equals(StatesManager.getChunkControlPointPos(cx, cz, world))) {
+					continue; //we are not the owner - dont unclaim
+				}
+
+				StatesManager.claimChunk(null, false, cx, cz, world);
 			}
-
-			StatesManager.claimChunk(null, false, cx, cz, world);
 		}
-		claimedChunks = new NBTTagList();
 	}
 
 	public void unclaimChunk(int cx, int cz) {
 		StatesManager.claimChunk(null, false, cx, cz, world);
-
-		byte xOffset = (byte) (cx - (pos.getX() >> 4));
-		byte zOffset = (byte) (cz - (pos.getZ() >> 4));
-		for (int i = 0; i < claimedChunks.tagCount(); i++) {
-			if(claimedChunks.getCompoundTagAt(i).getByte("x") == xOffset
-			&& claimedChunks.getCompoundTagAt(i).getByte("z") == zOffset) {
-				claimedChunks.removeTag(i);
-				return;
-			}
-		}
 	}
 
 	public void beginConflict() {
@@ -303,11 +298,46 @@ public class TileEntityControlPoint extends TileEntity implements ITickable {
 		return StatesManager.isChunkInConflict(pos, world);
 	}
 
+	/**
+	 * Tries to begin an occupation, throwing an exception if prerequisites are not met.
+	 * An exception will not be thrown if prerequisites are met but beginOccupation(..) fails,
+	 * i.e. if occupiers are already occupying this state or if the occupiers are not valid.
+	 *
+	 * @param bypassBalanceMeasures Should the measures to improve gameplay fairness be bypassed? (cooldown, allow attacking offline states, etc)
+	 */
+	public void tryBeginOccupation(ForgeTeam occupiers, boolean bypassBalanceMeasures) throws CommandException {
+		if(occupiers.equalsTeam(getOwner())) { //same state
+			throw new CommandException(MessageUtils.getCommandErrorKey("friendly_territory"));
+		}
+
+		if(!bypassBalanceMeasures) {
+			long cooldownTimeLeft = StatesSavedData.get(world).getOccupationCooldown(occupiers.getUID(), getOwner().getUID());
+			if(cooldownTimeLeft > 0) { //state in cooldown
+				throw new CommandException(MessageUtils.getCommandErrorKey("state_in_cooldown"),
+						getOwner().getCommandTitle(),
+						DurationFormatUtils.formatDurationHMS(cooldownTimeLeft));
+			}
+
+			cooldownTimeLeft = getOccupyCooldownTimeLeft();
+			if (cooldownTimeLeft > 0) { //region in cooldown
+				throw new CommandException(MessageUtils.getCommandErrorKey("region_in_cooldown"), DurationFormatUtils.formatDurationHMS(cooldownTimeLeft));
+			}
+
+			if (getOwner().getOnlineMembers().isEmpty() && !getOwner().getMembers().isEmpty()) { //no defenders online
+				throw new CommandException(MessageUtils.getCommandErrorKey("cant_occupy_offline_state"), getOwner().getCommandTitle());
+			}
+		}
+
+		beginOccupation(occupiers);
+	}
+
+	/**
+	 * Force-begins an occupation (does not check prerequisites)
+	 */
 	public void beginOccupation(ForgeTeam occupiers) {
-		if(getOccupyCooldownTimeLeft() > 0 //in cooldown
+		if(occupiers.equalsTeam(getOwner()) //same state
 				|| !occupiers.isValid() //invalid state
-				|| occupiers.equalsTeam(getOwner()) //same state
-				|| occupierWarScores.containsKey(occupiers.getUID())) //already occupying
+				|| occupierWarScores.containsKey(occupiers.getUID())) //already occuping
 			return;
 
 		ITextComponent message = new TextComponentString("")
@@ -317,9 +347,12 @@ public class TileEntityControlPoint extends TileEntity implements ITickable {
 				.appendText("!");
 		//noinspection ConstantConditions
 		MessageUtils.broadcastImportantMessage(world.getMinecraftServer(), message);
+		SoundUtils.playSoundForState(occupiers, OCCUPATION_START_SOUND_ATTACKERS, 1f, 1f);
+		SoundUtils.playSoundForState(getOwner(), OCCUPATION_START_SOUND_DEFENDERS, 1f, 1f);
 		if(!isConflictOngoing()) {
 			beginConflict();
 		}
+		occupierWarScores.put(occupiers.getUID(), new OccupationProgress(occupiers));
 		addWarScore(occupiers, ModConfig.warScoreStartingAmount);
 	}
 
@@ -329,8 +362,10 @@ public class TileEntityControlPoint extends TileEntity implements ITickable {
 
 
 	public void addWarScore(short stateId, int amount) {
-		OccupationProgress progress = occupierWarScores.computeIfAbsent(stateId,
-				id -> new OccupationProgress(StatesManager.getStateFromUid(id)));
+		OccupationProgress progress = occupierWarScores.get(stateId);
+		if(progress == null)
+			return;
+
 		int warScore = progress.warScore;
 		warScore += amount;
 		if(warScore >= 1000) {
@@ -340,7 +375,7 @@ public class TileEntityControlPoint extends TileEntity implements ITickable {
 		progress.setWarScore(Math.max(warScore, 0));
 		markDirty();
 		if(warScore < 0 && checkIfOccupiersLost()) {
-			repelOccupation();
+			resistOccupation();
 		}
 	}
 
@@ -400,15 +435,24 @@ public class TileEntityControlPoint extends TileEntity implements ITickable {
 		return true;
 	}
 
-	public void capitulate(short winningState) {
+	public void capitulate(short winningStateId) {
+		ForgeTeam winningState = StatesManager.getStateFromUid(winningStateId);
 		ITextComponent message = new TextComponentString("")
 				.appendSibling(getRegionName(true))
 				.appendText(" has capitulated to ")
-				.appendSibling(StatesManager.getStateFromUid(winningState).getCommandTitle());
+				.appendSibling(winningState.getCommandTitle());
+		SoundUtils.playSoundForState(winningState, OCCUPATION_WIN_SOUND, 1f, 1.5f);
+		SoundUtils.playSoundForState(getOwner(), OCCUPATION_LOSE_SOUND, 1f, 1f);
+		for (short occupierId : occupierWarScores.keySet()) {
+			if(occupierId == winningStateId)
+				continue;
+
+			SoundUtils.playSoundForState(StatesManager.getStateFromUid(occupierId), OCCUPATION_OTHER_WON_SOUND, 1f, 0.65f);
+		}
 		//noinspection ConstantConditions
 		MessageUtils.broadcastImportantMessage(world.getMinecraftServer(), message);
 		clearWarScores();
-		setOwner(winningState);
+		setOwner(winningStateId);
 		endConflict();
 		setOccupationCooldown(ModConfig.occupationCooldownOnCapitulate);
 	}
@@ -416,12 +460,17 @@ public class TileEntityControlPoint extends TileEntity implements ITickable {
 	/**
 	 * Called when the defending state wins against the occupiers
 	 */
-	protected void repelOccupation() {
+	protected void resistOccupation() {
 		ITextComponent message = new TextComponentString("")
 				.appendSibling(getRegionName(true))
 				.appendSibling(new TextComponentString(" has resisted occupation by "));
+		SoundUtils.playSoundForState(getOwner(), OCCUPATION_WIN_SOUND, 1f, 1.5f);
 		Short[] occupiers = occupierWarScores.keySet().toArray(new Short[0]);
 		for (int i = 0; i < occupiers.length; i++) {
+			ForgeTeam state = StatesManager.getStateFromUid(occupiers[i]);
+			StatesSavedData.get(world).setOccupationCooldown(occupiers[i], getOwner().getUID(), ModConfig.occupationCooldownOnDefend);
+			SoundUtils.playSoundForState(state, OCCUPATION_LOSE_SOUND, 1f, 1f);
+
 			if (i > 0) {
 				if (i == occupiers.length - 1) {
 					message.appendSibling(new TextComponentString(" and "));
@@ -448,7 +497,6 @@ public class TileEntityControlPoint extends TileEntity implements ITickable {
 	@Override
 	public NBTTagCompound writeToNBT(NBTTagCompound compound) {
 		compound.setShort(OWNER_NBT_TAG, ownerUid);
-		compound.setTag(CHUNKS_NBT_TAG, claimedChunks);
 		compound.setString(REGION_NAME_NBT_TAG, regionName == null ? "" : regionName);
 		compound.setLong(OCCUPATION_COOLDOWN_TAG, occupationCooldownEndTime);
 		NBTTagList warScoresTag = new NBTTagList();
@@ -471,7 +519,6 @@ public class TileEntityControlPoint extends TileEntity implements ITickable {
 	@Override
 	public void readFromNBT(NBTTagCompound compound) {
 		setOwner(compound.getShort(OWNER_NBT_TAG));
-		claimedChunks = compound.getTagList(CHUNKS_NBT_TAG, 10);
 		String regionName = compound.getString(REGION_NAME_NBT_TAG);
 		if(regionName.isEmpty())
 			regionName = null;

@@ -1,6 +1,7 @@
 package kaktusz.geopolitika.commands;
 
 import kaktusz.geopolitika.Geopolitika;
+import kaktusz.geopolitika.commands.subcommands.Subcommand;
 import mcp.MethodsReturnNonnullByDefault;
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.CommandException;
@@ -19,26 +20,51 @@ import java.util.stream.Collectors;
 public class CommandRoot extends CommandBase {
 
 	private final String name;
-	public final CommandPermissions permissionLevel;
+	public CommandPermissions permissionLevel;
 	private final LinkedHashMap<String, Subcommand> subcommands = new LinkedHashMap<>();
+	private final List<String> aliases;
+	private final List<String> adminAliases;
+	protected boolean adminMode;
 
-	public CommandRoot(String name, CommandPermissions permissionLevel) {
+	public CommandRoot(String name, CommandPermissions permissionLevel, String... aliases) {
 		this.name = name;
 		this.permissionLevel = permissionLevel;
+		this.aliases = Arrays.asList(aliases);
+		this.adminAliases = Arrays.stream(aliases).map(a -> a + "_admin").collect(Collectors.toList());
 	}
 
-	public void addSubcommand(Subcommand sub) {
+	public Subcommand addSubcommand(Subcommand sub) {
 		subcommands.put(sub.name, sub);
+		return sub;
+	}
+
+	public CommandRoot setAdminMode(boolean adminMode) {
+		this.adminMode = adminMode;
+		return this;
 	}
 
 	@Override
 	public boolean checkPermission(MinecraftServer server, ICommandSender sender) {
-		return super.checkPermission(server, sender);
+		return super.checkPermission(server, sender) && permissionLevel.hasPermissions(sender, this);
+	}
+
+	@Override
+	public int getRequiredPermissionLevel() {
+		return permissionLevel.level;
 	}
 
 	@Override
 	public String getName() {
+		return adminMode ? name + "_admin" : name;
+	}
+
+	public String getTranslationKey() {
 		return name;
+	}
+
+	@Override
+	public final List<String> getAliases() {
+		return adminMode ? adminAliases : aliases;
 	}
 
 	@Override
@@ -64,7 +90,7 @@ public class CommandRoot extends CommandBase {
 	}
 
 	public String getSubcommandUsage(ICommandSender sender, Subcommand subcommand) {
-		return Geopolitika.MODID + ".commands." + name + "." + subcommand.name + ".usage";
+		return Geopolitika.MODID + ".commands." + getTranslationKey() + "." + subcommand.name + ".usage";
 	}
 
 	@Override
@@ -78,7 +104,7 @@ public class CommandRoot extends CommandBase {
 			throw new WrongUsageException(getUsage(sender), getUsageParameter(sender));
 
 		try {
-			sub.execute(server, sender, getName(), Arrays.copyOfRange(args, 1, args.length));
+			sub.execute(server, sender, getTranslationKey(), adminMode, Arrays.copyOfRange(args, 1, args.length));
 		} catch (WrongUsageException e) {
 			throw new WrongUsageException(getSubcommandUsage(sender, sub));
 		}

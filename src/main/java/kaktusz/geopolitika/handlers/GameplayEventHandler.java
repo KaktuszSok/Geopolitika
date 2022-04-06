@@ -10,7 +10,7 @@ import com.feed_the_beast.ftbutilities.data.ClaimedChunks;
 import com.feed_the_beast.ftbutilities.events.chunks.ChunkModifiedEvent;
 import kaktusz.geopolitika.blocks.BlockControlPoint;
 import kaktusz.geopolitika.states.StatesManager;
-import kaktusz.geopolitika.states.StatesSavedData;
+import kaktusz.geopolitika.states.ChunksSavedData;
 import kaktusz.geopolitika.tileentities.TileEntityControlPoint;
 import kaktusz.geopolitika.util.MessageUtils;
 import net.minecraft.block.Block;
@@ -20,6 +20,8 @@ import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.Style;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextFormatting;
+import net.minecraftforge.common.ForgeHooks;
+import net.minecraftforge.event.ServerChatEvent;
 import net.minecraftforge.event.entity.EntityEvent;
 import net.minecraftforge.event.world.BlockEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -118,7 +120,7 @@ public class GameplayEventHandler {
 			}
 		}
 
-		StatesSavedData savedDataReference = null;
+		ChunksSavedData savedDataReference = null;
 		OptionalInt savedDataReferenceDim = OptionalInt.empty();
 		for (ClaimedChunk chunk : ClaimedChunks.instance.getTeamChunks(e.getTeam(), OptionalInt.empty()))
 		{
@@ -134,7 +136,7 @@ public class GameplayEventHandler {
 			ClaimedChunks.instance.removeChunk(pos);
 
 			if(!savedDataReferenceDim.isPresent() || savedDataReferenceDim.getAsInt() != pos.dim) {
-				savedDataReference = StatesSavedData.get(e.getUniverse().server.getWorld(pos.dim));
+				savedDataReference = ChunksSavedData.get(e.getUniverse().server.getWorld(pos.dim));
 				savedDataReferenceDim = OptionalInt.of(pos.dim);
 			}
 			savedDataReference.removeChunkControlPoint(pos.getChunkPos());
@@ -153,5 +155,27 @@ public class GameplayEventHandler {
 				pendingChunkClaims.clear();
 			}
 		}
+	}
+
+	@SubscribeEvent
+	public static void onChatMessage(ServerChatEvent e) {
+		EntityPlayerMP player = e.getPlayer();
+		if(player == null)
+			return;
+
+		ForgeTeam state = StatesManager.getPlayerState(player);
+		if(!state.isValid()) {
+			ITextComponent message = new TextComponentString("")
+					.appendSibling(player.getDisplayName().createCopy().appendText(": ").setStyle(new Style().setColor(TextFormatting.GRAY)))
+					.appendSibling(ForgeHooks.newChatWithLinks(e.getMessage()));
+			e.setComponent(message);
+			return;
+		}
+
+		ITextComponent message = new TextComponentString("")
+				.appendSibling(MessageUtils.getStateMessagePrefix(state))
+				.appendSibling(player.getDisplayName().createCopy().appendText(": ").setStyle(new Style().setColor(TextFormatting.GRAY)))
+				.appendSibling(ForgeHooks.newChatWithLinks(e.getMessage()));
+		e.setComponent(message);
 	}
 }

@@ -7,5 +7,6 @@ public class ModCommands {
 
 	public static void onServerStart(FMLServerStartingEvent e) {
 		e.registerServerCommand(new CmdRegion());
+		e.registerServerCommand(new CmdRegion().setAdminMode(true));
 	}
 }

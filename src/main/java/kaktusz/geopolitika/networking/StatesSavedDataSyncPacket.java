@@ -1,7 +1,7 @@
 package kaktusz.geopolitika.networking;
 
 import io.netty.buffer.ByteBuf;
-import kaktusz.geopolitika.states.StatesSavedData;
+import kaktusz.geopolitika.states.ChunksSavedData;
 import net.minecraft.client.Minecraft;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
@@ -9,20 +9,20 @@ import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
 public class StatesSavedDataSyncPacket implements IMessage {
 
-	public StatesSavedData data;
+	public ChunksSavedData data;
 
 	@SuppressWarnings("unused") //required by forge
 	public StatesSavedDataSyncPacket() {
 
 	}
 
-	public StatesSavedDataSyncPacket(StatesSavedData data) {
+	public StatesSavedDataSyncPacket(ChunksSavedData data) {
 		this.data = data;
 	}
 
 	@Override
 	public void fromBytes(ByteBuf buf) {
-		data = new StatesSavedData();
+		data = new ChunksSavedData();
 		data.fromBytes(buf);
 	}
 
@@ -36,7 +36,7 @@ public class StatesSavedDataSyncPacket implements IMessage {
 		@Override
 		public IMessage onMessage(StatesSavedDataSyncPacket message, MessageContext ctx) {
 			Minecraft.getMinecraft().addScheduledTask(() -> {
-				StatesSavedData.set(Minecraft.getMinecraft().world, message.data);
+				ChunksSavedData.set(Minecraft.getMinecraft().world, message.data);
 			});
 			return null;
 		}
