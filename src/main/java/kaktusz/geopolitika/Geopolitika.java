@@ -18,7 +18,7 @@ import net.minecraftforge.fml.relauncher.Side;
 import org.apache.logging.log4j.Logger;
 
 @Mod(modid = Geopolitika.MODID, name = Geopolitika.NAME, version = Geopolitika.VERSION,
-        dependencies = "required-after:ftblib;required-after:ftbutilities;after:xaerominimap;after:xaeroworldmap")
+        dependencies = "required-after:ftblib;required-after:ftbutilities;after:xaerominimapfair;after:xaeroworldmap")
 public class Geopolitika
 {
     public static final String MODID = "geopolitika";

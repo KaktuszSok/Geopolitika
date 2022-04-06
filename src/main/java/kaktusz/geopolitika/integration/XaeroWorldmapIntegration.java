@@ -1,10 +1,7 @@
 package kaktusz.geopolitika.integration;
 
 import com.feed_the_beast.ftblib.lib.data.ForgeTeam;
-import com.feed_the_beast.ftblib.lib.icon.Color4I;
-import kaktusz.geopolitika.Geopolitika;
 import kaktusz.geopolitika.states.StatesManager;
-import kaktusz.geopolitika.util.ColourUtils;
 import kaktusz.geopolitika.util.ReflectionUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
@@ -41,25 +38,23 @@ import java.util.Map;
 @Mod.EventBusSubscriber
 public class XaeroWorldmapIntegration {
 
-	private static XaeroMinimap minimapMod;
+	public static boolean enabled = false;
 
 	public static void postInit() {
-		Geopolitika.logger.info("loaded=" + Loader.isModLoaded("xaerominimap"));
-		Object modObj = Loader.instance().getIndexedModList().get("xaerominimap").getMod();
-		minimapMod = (XaeroMinimap) modObj;
-		System.out.println("Mod = " + minimapMod);
-		System.out.println("Mod (Instance) = " + XaeroMinimap.instance);
-		System.out.println("Supported = " + minimapMod.getSupportMods());
-		//TODO use mod instance if it actually works
-		minimapMod
-				.getSupportMods()
-				.worldmapSupport =
-				new SupportXaeroWorldmapWithClaims(
-						minimapMod);
+		enabled = Loader.isModLoaded("xaeroworldmap");
+
+		//set up minimap+worldmap support
+		if(!enabled || !Loader.isModLoaded("xaerominimapfair"))
+			return;
+
+		XaeroMinimap.instance.getSupportMods().worldmapSupport = new SupportXaeroWorldmapWithClaims(XaeroMinimap.instance);
 	}
 
 	@SubscribeEvent
 	public static void onGuiOpen(GuiOpenEvent e) {
+		if(!enabled)
+			return;
+
 		if(!(e.getGui() instanceof GuiMap) || e.getGui() instanceof GuiMapWithClaims)
 			return; //not opening a map or opening our patched version - ignore.
 

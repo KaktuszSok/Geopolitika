@@ -1,10 +1,8 @@
 package kaktusz.geopolitika.integration;
 
 import com.feed_the_beast.ftblib.lib.data.ForgeTeam;
-import com.feed_the_beast.ftblib.lib.icon.Color4I;
 import kaktusz.geopolitika.Geopolitika;
 import kaktusz.geopolitika.states.StatesManager;
-import kaktusz.geopolitika.util.ColourUtils;
 import kaktusz.geopolitika.util.ReflectionUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
@@ -17,6 +15,7 @@ import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.world.World;
+import net.minecraftforge.fml.common.Loader;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL14;
 import xaero.common.IXaeroMinimap;
@@ -43,7 +42,15 @@ import java.lang.reflect.Field;
 import java.util.Iterator;
 
 public class XaeroMinimapIntegration {
+
+	public static boolean enabled = false;
+
 	public static void postInit() {
+		enabled = Loader.isModLoaded("xaerominimapfair");
+
+		if(!enabled)
+			return;
+
 		MinimapInterface minimapInterface = XaeroMinimap.instance.getInterfaces().getMinimapInterface();
 		try {
 			Field fboRendererField = minimapInterface.getClass().getDeclaredField("minimapFBORenderer");
