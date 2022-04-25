@@ -1,5 +1,6 @@
 package kaktusz.geopolitika.states;
 
+import com.feed_the_beast.ftblib.lib.data.ForgeTeam;
 import io.netty.buffer.ByteBuf;
 import kaktusz.geopolitika.Geopolitika;
 import kaktusz.geopolitika.handlers.ModPacketHandler;
@@ -16,6 +17,7 @@ import net.minecraft.world.storage.WorldSavedData;
 
 import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -23,10 +25,27 @@ import java.util.Map;
 @ParametersAreNonnullByDefault
 public class ChunksSavedData extends WorldSavedData {
 
+	public static class ChunkInfo {
+		public BlockPos controlPointPos;
+		/**
+		 * ID of the state currently controlling this chunk. During an occupation, it is the ID of the special conflict zone state.
+		 */
+		public short stateId;
+
+		public ChunkInfo(BlockPos controlPointPos, ForgeTeam controllingState) {
+			this(controlPointPos, controllingState.getUID());
+		}
+
+		public ChunkInfo(BlockPos controlPointPos, short stateId) {
+			this.controlPointPos = controlPointPos;
+			this.stateId = stateId;
+		}
+	}
+
 	private static final String DATA_NAME = Geopolitika.MODID + "_stateChunks";
 	private static final String CHUNK_OWNERS_NBT_TAG = "chunkOwners";
 
-	private final Map<ChunkPos, BlockPos> chunkOwners = new HashMap<>();
+	private final Map<ChunkPos, ChunkInfo> chunkOwners = new HashMap<>();
 	private World world;
 
 	public ChunksSavedData() {
@@ -58,8 +77,16 @@ public class ChunksSavedData extends WorldSavedData {
 		return world;
 	}
 
-	public void setChunkControlPoint(ChunkPos chunkPos, BlockPos controlPointPos) {
-		chunkOwners.put(chunkPos, controlPointPos);
+	public void setChunkControlPoint(ChunkPos chunkPos, BlockPos controlPointPos, short stateId) {
+		ChunkInfo info = chunkOwners.get(chunkPos);
+		if(info != null) {
+			info.controlPointPos = controlPointPos;
+			info.stateId = stateId;
+		}
+		else {
+			info = new ChunkInfo(controlPointPos, stateId);
+			chunkOwners.put(chunkPos, info);
+		}
 		markDirty();
 	}
 
@@ -69,8 +96,20 @@ public class ChunksSavedData extends WorldSavedData {
 	}
 
 	@Nullable
-	public BlockPos getChunkControlPointPos(ChunkPos chunkPos) {
+	public ChunkInfo getChunkInfo(ChunkPos chunkPos) {
 		return chunkOwners.get(chunkPos);
+	}
+
+	public Collection<ChunkInfo> getAllChunkInfos() {
+		return chunkOwners.values();
+	}
+
+	@Nullable
+	public BlockPos getChunkControlPointPos(ChunkPos chunkPos) {
+		ChunkInfo info = chunkOwners.get(chunkPos);
+		if(info == null)
+			return null;
+		return info.controlPointPos;
 	}
 
 	@Nullable
@@ -132,7 +171,7 @@ public class ChunksSavedData extends WorldSavedData {
 					NBTTagCompound entry = (NBTTagCompound)entryBase;
 					ChunkPos chunkPos = new ChunkPos(entry.getInteger("cx"), entry.getInteger("cz"));
 					BlockPos controlPointPos = new BlockPos(entry.getInteger("x"), entry.getShort("y"), entry.getInteger("z"));
-					setChunkControlPoint(chunkPos, controlPointPos);
+					setChunkControlPoint(chunkPos, controlPointPos, entry.getShort("state"));
 				}
 		);
 	}
@@ -142,13 +181,14 @@ public class ChunksSavedData extends WorldSavedData {
 		NBTTagCompound nbt = new NBTTagCompound();
 		NBTTagList chunkOwnersNbt = new NBTTagList();
 		chunkOwners.forEach(
-				(c,cp) -> {
+				(c,info) -> {
 					NBTTagCompound entry = new NBTTagCompound();
 					entry.setInteger("cx", c.x);
 					entry.setInteger("cz", c.z);
-					entry.setInteger("x", cp.getX());
-					entry.setShort("y", (short) cp.getY());
-					entry.setInteger("z", cp.getZ());
+					entry.setInteger("x", info.controlPointPos.getX());
+					entry.setShort("y", (short) info.controlPointPos.getY());
+					entry.setInteger("z", info.controlPointPos.getZ());
+					entry.setShort("state", info.stateId);
 					chunkOwnersNbt.appendTag(entry);
 				}
 		);
@@ -162,19 +202,20 @@ public class ChunksSavedData extends WorldSavedData {
 		for (int i = 0; i < size; i++) {
 			ChunkPos chunkPos = new ChunkPos(buf.readInt(), buf.readInt());
 			BlockPos controlPointPos = new BlockPos(buf.readInt(), buf.readShort(), buf.readInt());
-			setChunkControlPoint(chunkPos, controlPointPos);
+			setChunkControlPoint(chunkPos, controlPointPos, buf.readShort());
 		}
 	}
 
 	public void toBytes(ByteBuf buf) {
 		buf.writeInt(chunkOwners.size());
 		chunkOwners.forEach(
-				(c, cp) -> {
+				(c, info) -> {
 					buf.writeInt(c.x);
 					buf.writeInt(c.z);
-					buf.writeInt(cp.getX());
-					buf.writeShort(cp.getY());
-					buf.writeInt(cp.getZ());
+					buf.writeInt(info.controlPointPos.getX());
+					buf.writeShort(info.controlPointPos.getY());
+					buf.writeInt(info.controlPointPos.getZ());
+					buf.writeShort(info.stateId);
 				}
 		);
 	}

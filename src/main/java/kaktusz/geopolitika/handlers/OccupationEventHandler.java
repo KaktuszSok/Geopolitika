@@ -22,9 +22,8 @@ import java.util.Queue;
 @Mod.EventBusSubscriber
 public class OccupationEventHandler {
 
-	//TODO make these translatable
-	private static final Style LOSE_WAR_SCORE_MESSAGE_STYLE = new Style().setColor(TextFormatting.DARK_RED);
-	private static final Style GAIN_WAR_SCORE_MESSAGE_STYLE = new Style().setColor(TextFormatting.DARK_GREEN);
+	public static final Style LOSE_WAR_SCORE_MESSAGE_STYLE = new Style().setColor(TextFormatting.DARK_RED);
+	public static final Style GAIN_WAR_SCORE_MESSAGE_STYLE = new Style().setColor(TextFormatting.DARK_GREEN);
 
 	private static final Queue<Runnable> queuedActions = new LinkedList<>();
 

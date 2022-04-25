@@ -20,6 +20,7 @@ import net.minecraft.util.EnumFacing;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.world.World;
 import net.minecraftforge.event.world.BlockEvent;
 import net.minecraftforge.fml.common.registry.GameRegistry;
@@ -159,17 +160,32 @@ public class BlockControlPoint extends BlockBase implements ITileEntityProvider 
 		if(!(te instanceof TileEntityControlPoint))
 			return false;
 		TileEntityControlPoint cp = (TileEntityControlPoint) te;
-
 		EntityPlayerMP player = (EntityPlayerMP) playerIn;
-		if(!StatesManager.hasPlayerModifyClaimsAuthority(player))
-			return true;
 
 		ForgeTeam playerState = StatesManager.getPlayerState(player);
-		if(!cp.getOwner().isValid() && playerState.isValid()) {
+		if(!playerState.isValid())
+			return true;
+
+
+		if(!cp.getOwner().isValid() //unowned control point
+				&& StatesManager.hasPlayerModifyClaimsAuthority(player)) //player can modify claims of their state
+		{
 			cp.setOwner(playerState);
 			cp.claimChunks(false);
-		} else if(cp.getOwner().equalsTeam(playerState) && !cp.isConflictOngoing()) {
+		}
+		else if(cp.getOwner().equalsTeam(playerState) //control point owned by player's state
+				&& !cp.isConflictOngoing() //no conflict
+				&& StatesManager.hasPlayerModifyClaimsAuthority(player)) //player can modify claims of their state
+		{
 			cp.claimChunks(false);
+		}
+		else if(cp.getOwner().equalsTeam(playerState) //control point owned by player's state
+				&& cp.isConflictOngoing()) //yes conflict
+		{
+			cp.tryHighlightOccupiers(player);
+		}
+		else if(cp.isBeingOccupiedBy(playerState)) { //player is the attacker
+			cp.tryActivelyOccupy(player);
 		}
 
 		return true;

@@ -5,9 +5,9 @@ import com.feed_the_beast.ftblib.lib.data.Universe;
 import com.feed_the_beast.ftblib.lib.util.misc.TimeType;
 import kaktusz.geopolitika.Geopolitika;
 import kaktusz.geopolitika.handlers.GameplayEventHandler;
+import kaktusz.geopolitika.handlers.OccupationEventHandler;
 import kaktusz.geopolitika.init.ModConfig;
 import kaktusz.geopolitika.states.StatesManager;
-import kaktusz.geopolitika.states.ChunksSavedData;
 import kaktusz.geopolitika.states.StatesSavedData;
 import kaktusz.geopolitika.util.MessageUtils;
 import kaktusz.geopolitika.util.SoundUtils;
@@ -15,20 +15,17 @@ import mcp.MethodsReturnNonnullByDefault;
 import net.minecraft.command.CommandException;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.init.MobEffects;
 import net.minecraft.init.SoundEvents;
-import net.minecraft.nbt.NBTBase;
-import net.minecraft.nbt.NBTTagByte;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.network.NetworkManager;
 import net.minecraft.network.play.server.SPacketUpdateTileEntity;
+import net.minecraft.potion.PotionEffect;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.ITickable;
 import net.minecraft.util.SoundEvent;
-import net.minecraft.util.text.ITextComponent;
-import net.minecraft.util.text.Style;
-import net.minecraft.util.text.TextComponentString;
-import net.minecraft.util.text.TextFormatting;
+import net.minecraft.util.text.*;
 import net.minecraft.world.BossInfo;
 import net.minecraft.world.BossInfoServer;
 import org.apache.commons.lang3.time.DurationFormatUtils;
@@ -102,6 +99,8 @@ public class TileEntityControlPoint extends TileEntity implements ITickable {
 	 * Earliest time (as in System.currentTimeMillis()) when this control point can be the target of a new occupation.
 	 */
 	private long occupationCooldownEndTime = 0;
+	private long highlightOccupiersCooldownEndTime = 0; //not persistent
+	private long activeOccupationCooldownTicks = 0; //not persistent
 
 	public ForgeTeam getOwner() {
 		if(ownerCache == null)
@@ -172,6 +171,9 @@ public class TileEntityControlPoint extends TileEntity implements ITickable {
 
 		if(occupierWarScores.isEmpty())
 			return;
+
+		if(activeOccupationCooldownTicks > 0)
+			activeOccupationCooldownTicks -= 20;
 
 		//inefficient but fuck it
 		//noinspection ConstantConditions
@@ -366,11 +368,19 @@ public class TileEntityControlPoint extends TileEntity implements ITickable {
 		if(progress == null)
 			return;
 
-		int warScore = progress.warScore;
-		warScore += amount;
+		int oldWarScore = progress.warScore;
+		int warScore = oldWarScore + amount;
 		if(warScore >= 1000) {
 			capitulate(stateId);
 			return;
+		} else {
+			int[] thresholds = {900, 750, 500, 300};
+			for (int threshold : thresholds) {
+				if (warScore >= threshold && oldWarScore < threshold) {
+					alertOccupationProgress(StatesManager.getStateFromUid(stateId), threshold);
+					break;
+				}
+			}
 		}
 		progress.setWarScore(Math.max(warScore, 0));
 		markDirty();
@@ -380,7 +390,11 @@ public class TileEntityControlPoint extends TileEntity implements ITickable {
 	}
 
 	public int getWarScore(ForgeTeam state) {
-		OccupationProgress progress = occupierWarScores.get(state.getUID());
+		return getWarScore(state.getUID());
+	}
+
+	public int getWarScore(short stateId) {
+		OccupationProgress progress = occupierWarScores.get(stateId);
 		if(progress == null)
 			return 0;
 		return progress.warScore;
@@ -492,6 +506,55 @@ public class TileEntityControlPoint extends TileEntity implements ITickable {
 
 	public long getOccupyCooldownTimeLeft() {
 		return occupationCooldownEndTime - System.currentTimeMillis();
+	}
+
+	public void tryHighlightOccupiers(EntityPlayerMP user) {
+		long cooldownLeft = highlightOccupiersCooldownEndTime - System.currentTimeMillis();
+		if(cooldownLeft > 0) {
+			MessageUtils.sendErrorMessage(user, "cp_highlight_cooldown", DurationFormatUtils.formatDurationHMS(cooldownLeft));
+			return;
+		}
+
+		int occupiersAmount = 0;
+		if(isConflictOngoing()) {
+			for (EntityPlayerMP player : world.getPlayers(EntityPlayerMP.class, (p ->
+				p != null && isBeingOccupiedBy(StatesManager.getPlayerState(p)) && isEntityInRegion(p)
+			))) {
+				player.addPotionEffect(new PotionEffect(MobEffects.GLOWING, ModConfig.highlightOccupiersDuration*20, 0, true, false));
+				occupiersAmount++;
+			}
+		}
+		if(occupiersAmount > 0) {
+			highlightOccupiersCooldownEndTime = System.currentTimeMillis() + ModConfig.highlightOccupiersCooldown*1000L;
+			MessageUtils.sendInfoMessage(user, new TextComponentTranslation("geopolitika.info.cp_highlight_success"));
+		} else {
+			MessageUtils.sendInfoMessage(user, new TextComponentTranslation("geopolitika.info.cp_highlight_nobody"));
+		}
+	}
+
+	public void tryActivelyOccupy(EntityPlayerMP attacker) {
+		if(activeOccupationCooldownTicks > 0)
+			return;
+
+		ForgeTeam state = StatesManager.getPlayerState(attacker);
+		if(!isBeingOccupiedBy(state))
+			return;
+
+		activeOccupationCooldownTicks = 20;
+		addWarScore(state, ModConfig.warScoreActiveOccupationGain);
+		MessageUtils.displayActionbar(attacker,
+				new TextComponentTranslation("geopolitika.info.gain_war_score_rightclick", ModConfig.warScoreActiveOccupationGain)
+				.setStyle(OccupationEventHandler.GAIN_WAR_SCORE_MESSAGE_STYLE));
+	}
+
+	public void alertOccupationProgress(ForgeTeam occupiers, int warScore) {
+		ITextComponent message = new TextComponentTranslation(
+				"geopolitika.info.occupation_progress",
+				getRegionName(true),
+				new TextComponentString(warScore/10 + "%").setStyle(MessageUtils.BOLD_STYLE),
+				occupiers.getCommandTitle());
+		MessageUtils.sendMessageToState(getOwner(), message);
+		MessageUtils.sendMessageToState(occupiers, message);
 	}
 
 	@Override

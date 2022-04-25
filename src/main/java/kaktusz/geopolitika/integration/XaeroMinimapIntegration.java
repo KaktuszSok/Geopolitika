@@ -1,8 +1,8 @@
 package kaktusz.geopolitika.integration;
 
-import com.feed_the_beast.ftblib.lib.data.ForgeTeam;
 import kaktusz.geopolitika.Geopolitika;
-import kaktusz.geopolitika.states.StatesManager;
+import kaktusz.geopolitika.states.ClientStatesManager;
+import kaktusz.geopolitika.states.CommonStateInfo;
 import kaktusz.geopolitika.util.ReflectionUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
@@ -16,6 +16,8 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.world.World;
 import net.minecraftforge.fml.common.Loader;
+import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL14;
 import xaero.common.IXaeroMinimap;
@@ -41,6 +43,7 @@ import xaero.minimap.XaeroMinimap;
 import java.lang.reflect.Field;
 import java.util.Iterator;
 
+@SideOnly(Side.CLIENT)
 public class XaeroMinimapIntegration {
 
 	public static boolean enabled = false;
@@ -352,7 +355,7 @@ public class XaeroMinimapIntegration {
 				MinimapTile tile = mchunk.getTile(t % 4, t / 4);
 				if(tile == null)
 					continue;
-				ForgeTeam owner = StatesManager.getChunkOwner(tile.getX(), tile.getZ(), world);
+				CommonStateInfo owner = ClientStatesManager.getChunkOwner(tile.getX(), tile.getZ(), world);
 				if (owner.isValid()) {
 					int claimDrawX = drawX + 16 * (t % 4);
 					int claimDrawZ = drawZ + 16 * (t / 4);

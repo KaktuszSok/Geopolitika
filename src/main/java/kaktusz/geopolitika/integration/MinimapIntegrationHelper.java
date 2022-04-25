@@ -2,6 +2,8 @@ package kaktusz.geopolitika.integration;
 
 import com.feed_the_beast.ftblib.lib.data.ForgeTeam;
 import com.feed_the_beast.ftblib.lib.icon.Color4I;
+import kaktusz.geopolitika.states.ClientStatesManager;
+import kaktusz.geopolitika.states.CommonStateInfo;
 import kaktusz.geopolitika.states.StatesManager;
 import kaktusz.geopolitika.util.ColourUtils;
 import net.minecraft.client.gui.Gui;
@@ -12,9 +14,9 @@ public class MinimapIntegrationHelper {
 
 	private static final Color4I CONFLICT_COLOUR = Color4I.rgba(255, 0, 0, 50);
 
-	public static void drawChunkClaim(int claimDrawX, int claimDrawZ, ForgeTeam owner, int cx, int cz, World world) {
+	public static void drawChunkClaim(int claimDrawX, int claimDrawZ, CommonStateInfo owner, int cx, int cz, World world) {
 		//fill colour
-		Color4I colour = StatesManager.isConflictTeam(owner) ? CONFLICT_COLOUR : owner.getColor().getColor();
+		Color4I colour = ClientStatesManager.isConflictState(owner) ? CONFLICT_COLOUR : owner.colour.getColor();
 		Gui.drawRect(claimDrawX, claimDrawZ, claimDrawX + 16, claimDrawZ + 16,
 				ColourUtils.colourAsInt(colour.redi(), colour.greeni(), colour.bluei(), 100));
 

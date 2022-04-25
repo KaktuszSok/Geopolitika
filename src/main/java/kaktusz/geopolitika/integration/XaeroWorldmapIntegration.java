@@ -1,7 +1,7 @@
 package kaktusz.geopolitika.integration;
 
-import com.feed_the_beast.ftblib.lib.data.ForgeTeam;
-import kaktusz.geopolitika.states.StatesManager;
+import kaktusz.geopolitika.states.ClientStatesManager;
+import kaktusz.geopolitika.states.CommonStateInfo;
 import kaktusz.geopolitika.util.ReflectionUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
@@ -15,6 +15,8 @@ import net.minecraftforge.client.event.GuiOpenEvent;
 import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL14;
 import xaero.common.IXaeroMinimap;
@@ -35,7 +37,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-@Mod.EventBusSubscriber
+@Mod.EventBusSubscriber({Side.CLIENT})
+@SideOnly(Side.CLIENT)
 public class XaeroWorldmapIntegration {
 
 	public static boolean enabled = false;
@@ -55,17 +58,17 @@ public class XaeroWorldmapIntegration {
 		if(!enabled)
 			return;
 
-		if(!(e.getGui() instanceof GuiMap) || e.getGui() instanceof GuiMapWithClaims)
+		if(!(e.getGui() instanceof GuiMap) || e.getGui() instanceof XaeroWorldmapIntegration.GuiMapWithClaims)
 			return; //not opening a map or opening our patched version - ignore.
 
-		GuiMapWithClaims patchedGui = new GuiMapWithClaims(null, null, WorldMapSession.getCurrentSession().getMapProcessor(), Minecraft.getMinecraft().player);
+		XaeroWorldmapIntegration.GuiMapWithClaims patchedGui = new XaeroWorldmapIntegration.GuiMapWithClaims(null, null, WorldMapSession.getCurrentSession().getMapProcessor(), Minecraft.getMinecraft().player);
 		e.setGui(patchedGui);
 	}
 
 	public static class GuiMapWithClaims extends GuiMap {
 		@SuppressWarnings("FieldMayBeFinal")
 		private MapProcessor mapProcessor;
-		private final Map<ChunkPos, ForgeTeam> claimedChunksCache = new HashMap<>();
+		private final Map<ChunkPos, CommonStateInfo> claimedChunksCache = new HashMap<>();
 		private long nextCacheRefreshTimeMillis = 0;
 
 		public GuiMapWithClaims(GuiScreen parent, GuiScreen escape, MapProcessor mapProcessor, Entity player) {
@@ -132,7 +135,7 @@ public class XaeroWorldmapIntegration {
 		}
 
 		protected void updateClaimedChunksCache(int cx, int cz) {
-			ForgeTeam owner = StatesManager.getChunkOwner(cx, cz, mapProcessor.getWorld());
+			CommonStateInfo owner = ClientStatesManager.getChunkOwner(cx, cz, mapProcessor.getWorld());
 			if(!owner.isValid())
 				return;
 			claimedChunksCache.put(new ChunkPos(cx, cz), owner);
@@ -310,7 +313,7 @@ public class XaeroWorldmapIntegration {
 				MapTile tile = chunk.getTile(t%4, t/4);
 				if(tile == null)
 					continue;
-				ForgeTeam owner = StatesManager.getChunkOwner(tile.getChunkX(), tile.getChunkZ(), world);
+				CommonStateInfo owner = ClientStatesManager.getChunkOwner(tile.getChunkX(), tile.getChunkZ(), world);
 				if (owner.isValid()) {
 					int claimDrawX = drawX + 16 * (t % 4);
 					int claimDrawZ = drawZ + 16 * (t / 4);

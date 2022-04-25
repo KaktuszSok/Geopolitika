@@ -10,9 +10,12 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.text.*;
 
 import javax.annotation.Nonnull;
+import javax.annotation.ParametersAreNonnullByDefault;
 
+@ParametersAreNonnullByDefault
 public class MessageUtils {
-	public static final Style ERROR_STYLE = new net.minecraft.util.text.Style().setColor(TextFormatting.RED);
+	public static final Style ERROR_STYLE = new Style().setColor(TextFormatting.RED);
+	public static final Style BOLD_STYLE = new Style().setBold(true);
 	private static final TextComponentString EMPTY_STRING = new TextComponentString("");
 	private static final ITextComponent MESSAGE_PREFIX = new TextComponentString("[")
 			.setStyle(new Style().setColor(TextFormatting.GRAY))
@@ -54,6 +57,11 @@ public class MessageUtils {
 		target.connection.sendPacket(subtitlePacket);
 		SPacketTitle titlePacket = new SPacketTitle(SPacketTitle.Type.TITLE, EMPTY_STRING);
 		target.connection.sendPacket(titlePacket);
+	}
+
+	public static void displayActionbar(EntityPlayerMP target, ITextComponent message) {
+		SPacketTitle actionbarPacket = new SPacketTitle(SPacketTitle.Type.ACTIONBAR, message);
+		target.connection.sendPacket(actionbarPacket);
 	}
 
 	public static void broadcastInfoMessage(MinecraftServer server, ITextComponent messageContent) {

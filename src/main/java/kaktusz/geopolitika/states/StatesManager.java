@@ -202,8 +202,7 @@ public class StatesManager {
 		GameplayEventHandler.pendingChunkClaims.put(claimed.getPos(), claimed);
 		new ChunkModifiedEvent.Claimed(claimed, null).post();
 
-		ChunksSavedData.get(world).setChunkControlPoint(new ChunkPos(cx, cz), controlPoint.getPos());
-		Geopolitika.logger.info("claimed chunk for team " + owner);
+		ChunksSavedData.get(world).setChunkControlPoint(new ChunkPos(cx, cz), controlPoint.getPos(), owner.getUID());
 	}
 
 	/**
@@ -217,7 +216,7 @@ public class StatesManager {
 	 * Checks if there is an ongoing conflict in the given chunk.
 	 */
 	public static boolean isChunkInConflict(int cx, int cz, World world) {
-		return getChunkOwner(cz, cz, world).equalsTeam(get().CONFLICT_ZONE_TEAM);
+		return getChunkOwner(cx, cz, world).equalsTeam(get().CONFLICT_ZONE_TEAM);
 	}
 
 	/**

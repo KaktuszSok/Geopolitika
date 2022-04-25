@@ -4,8 +4,7 @@ import kaktusz.geopolitika.handlers.ModPacketHandler;
 import kaktusz.geopolitika.handlers.RegistryHandler;
 import kaktusz.geopolitika.init.ModBlocks;
 import kaktusz.geopolitika.init.ModCommands;
-import kaktusz.geopolitika.integration.XaeroMinimapIntegration;
-import kaktusz.geopolitika.integration.XaeroWorldmapIntegration;
+import kaktusz.geopolitika.integration.XaeroIntegrationCommon;
 import kaktusz.geopolitika.proxy.CommonProxy;
 import kaktusz.geopolitika.states.StatesManager;
 import net.minecraft.creativetab.CreativeTabs;
@@ -51,14 +50,13 @@ public class Geopolitika
     public void init(FMLInitializationEvent event)
     {
         RegistryHandler.init(event);
-        ModPacketHandler.init();
+        ModPacketHandler.init(event);
     }
 
     @EventHandler
     public void postInit(FMLPostInitializationEvent event) {
         if(event.getSide() == Side.CLIENT) {
-            XaeroMinimapIntegration.postInit();
-            XaeroWorldmapIntegration.postInit();
+            XaeroIntegrationCommon.postInit();
         }
     }
 

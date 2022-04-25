@@ -11,8 +11,12 @@ public class ModConfig {
 	@Config.RangeInt(min=0, max=32)
 	public static byte controlPointClaimRadius = 4;
 
+	@Config.Comment("War score gained every second when unopposed inside the occupied territory.")
 	@Config.RangeInt(min=0, max=1000)
-	public static int warScoreOccupationGain = 2;
+	public static int warScoreOccupationGain = 1;
+	@Config.Comment("War score gained when right-clicking the occupied territory's control point. May be done once per second.")
+	@Config.RangeInt(min=0, max=1000)
+	public static int warScoreActiveOccupationGain = 2;
 	@Config.RangeInt(min=0, max=1000)
 	public static int warScoreDecay = 3;
 	@Config.RangeInt(min=0, max=1000)
@@ -28,4 +32,10 @@ public class ModConfig {
 	@Config.Comment("How many minutes between when a control point is successfully defended and when the state can be attacked by the occupiers again.")
 	@Config.RangeInt(min=0)
 	public static int occupationCooldownOnDefend = 120;
+	@Config.Comment("How many seconds do defenders have to wait between revealing the location of occupiers by right-clicking a control point?")
+	@Config.RangeInt(min=0)
+	public static int highlightOccupiersCooldown = 3*60;
+	@Config.Comment("Duration of the glow effect given to revealed occupiers.")
+	@Config.RangeInt(min=0)
+	public static int highlightOccupiersDuration = 15;
 }
