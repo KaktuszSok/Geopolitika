@@ -21,8 +21,8 @@ public class RoomInfo {
 
 	private static boolean DEBUG_MODE = true;
 	private static boolean DEEP_DEBUG = false;
-	private static final int MAX_SIZE_HORIZONTAL = 33;
-	private static final int MAX_SIZE_VERTICAL = 12;
+	private static final int MAX_SIZE_HORIZONTAL = 65;
+	private static final int MAX_SIZE_VERTICAL = 20;
 	private static final int MAX_VOLUME = MAX_SIZE_HORIZONTAL*MAX_SIZE_VERTICAL*MAX_SIZE_HORIZONTAL/3;
 
 	/**
