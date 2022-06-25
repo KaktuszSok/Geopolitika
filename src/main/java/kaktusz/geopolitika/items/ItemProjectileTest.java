@@ -22,13 +22,13 @@ import net.minecraft.util.EnumHand;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.RayTraceResult;
 import net.minecraft.util.math.Vec3d;
-import net.minecraft.util.text.TextComponentString;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
 
 public class ItemProjectileTest extends Item implements IHasModel {
 
-	private double shootVelocity = 5d;
+	private double shootVelocity = 4d;
+	private double inaccuracy = 0.015d;
 
 	public ItemProjectileTest(String name, CreativeTabs tab) {
 		setTranslationKey(name);
@@ -64,7 +64,8 @@ public class ItemProjectileTest extends Item implements IHasModel {
 					new Vec3d(target).add(0.5d, 1.0d, 0.5d),
 					shootVelocity,
 					0.05d,
-					false
+					false,
+					inaccuracy
 			);
 		} catch (NoPossibleSolutionsException e) {
 			MessageUtils.sendErrorMessage(playerIn,"target_too_far");
@@ -80,7 +81,7 @@ public class ItemProjectileTest extends Item implements IHasModel {
 		RayTraceResult trace = WorldUtils.rayTraceBlocksDontLoad(
 				worldIn,
 				playerIn.getPositionEyes(0),
-				playerIn.getPositionEyes(0).add(playerIn.getLookVec().scale(512d)),
+				playerIn.getPositionEyes(0).add(playerIn.getLookVec().scale(2048d)),
 				false,
 				true,
 				false

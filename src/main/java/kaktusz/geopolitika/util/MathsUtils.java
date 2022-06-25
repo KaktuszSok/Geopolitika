@@ -43,10 +43,10 @@ public class MathsUtils {
         return min + RandomUtils.nextInt(0, max-min);
     }
     public static float randomRange(float min, float max) {
-        return min + RandomUtils.nextFloat()*(max-min);
+        return min + RandomUtils.nextFloat(0, max-min);
     }
     public static double randomRange(double min, double max) {
-        return min + RandomUtils.nextDouble()*(max-min);
+        return min + RandomUtils.nextDouble(0, max-min);
     }
 
     /**

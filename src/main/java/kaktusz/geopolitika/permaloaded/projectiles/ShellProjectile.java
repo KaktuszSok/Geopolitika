@@ -1,6 +1,7 @@
 package kaktusz.geopolitika.permaloaded.projectiles;
 
 import kaktusz.geopolitika.util.ParticleUtils;
+import net.minecraft.entity.item.EntityTNTPrimed;
 import net.minecraft.util.EnumParticleTypes;
 import net.minecraft.util.math.RayTraceResult;
 import net.minecraft.util.math.Vec3d;
@@ -50,7 +51,7 @@ public class ShellProjectile extends VirtualProjectile {
 	@Override
 	public void destroy() {
 		Vec3d pos = getPosition();
-		getWorld().createExplosion(getShootingEntity(), pos.x, pos.y, pos.z, explosionStrength, damageTerrain);
+		getWorld().createExplosion(null, pos.x, pos.y, pos.z, explosionStrength, damageTerrain);
 		super.destroy();
 	}
 }

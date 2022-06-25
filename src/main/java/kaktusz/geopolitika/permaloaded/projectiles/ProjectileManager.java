@@ -41,17 +41,14 @@ public class ProjectileManager {
 	}
 
 	public void tick() {
-		Geopolitika.logger.info("add " + projectilesToAdd.size());
 		while (!projectilesToAdd.isEmpty()) {
 			projectiles.add(projectilesToAdd.remove());
 		}
 
-		Geopolitika.logger.info("remove " + projectilesToRemove.size());
 		while (!projectilesToRemove.isEmpty()) {
 			projectiles.remove(projectilesToRemove.remove());
 		}
 
-		Geopolitika.logger.info("have " + projectiles.size());
 		Iterator<VirtualProjectile> iter = projectiles.iterator();
 		while (iter.hasNext()) {
 			VirtualProjectile proj = iter.next();
