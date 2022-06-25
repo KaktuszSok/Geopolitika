@@ -9,6 +9,8 @@ import com.feed_the_beast.ftbutilities.data.ClaimedChunk;
 import com.feed_the_beast.ftbutilities.data.ClaimedChunks;
 import com.feed_the_beast.ftbutilities.events.chunks.ChunkModifiedEvent;
 import kaktusz.geopolitika.blocks.BlockControlPoint;
+import kaktusz.geopolitika.permaloaded.PermaloadedSavedData;
+import kaktusz.geopolitika.permaloaded.projectiles.ProjectileManager;
 import kaktusz.geopolitika.states.StatesManager;
 import kaktusz.geopolitika.states.ChunksSavedData;
 import kaktusz.geopolitika.tileentities.TileEntityControlPoint;
@@ -20,14 +22,18 @@ import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.Style;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextFormatting;
+import net.minecraft.world.WorldServer;
 import net.minecraftforge.common.ForgeHooks;
 import net.minecraftforge.event.ServerChatEvent;
 import net.minecraftforge.event.entity.EntityEvent;
 import net.minecraftforge.event.world.BlockEvent;
+import net.minecraftforge.event.world.ChunkEvent;
+import net.minecraftforge.event.world.WorldEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
+import net.minecraftforge.fml.relauncher.Side;
 
 import java.util.*;
 
@@ -143,6 +149,25 @@ public class GameplayEventHandler {
 		}
 	}
 
+	@SubscribeEvent
+	public static void onChunkLoaded(ChunkEvent.Load e) {
+		if(e.getWorld().isRemote)
+			return;
+
+		PermaloadedSavedData.get(e.getWorld()).onChunkLoaded(e.getChunk());
+	}
+
+	@SubscribeEvent
+	public static void onWorldTick(TickEvent.WorldTickEvent e) {
+		if(e.side != Side.SERVER)
+			return;
+
+		if(e.phase == TickEvent.Phase.START) {
+			PermaloadedSavedData.get(e.world).onWorldTick();
+			ProjectileManager.get(e.world).tick();
+		}
+	}
+
 	@SubscribeEvent(priority = EventPriority.HIGH)
 	public static void onServerTick(TickEvent.ServerTickEvent e) {
 		if (e.phase == TickEvent.Phase.START)
@@ -155,6 +180,14 @@ public class GameplayEventHandler {
 				pendingChunkClaims.clear();
 			}
 		}
+	}
+
+	@SubscribeEvent
+	public static void onWorldUnloaded(WorldEvent.Unload e) {
+		if(e.getWorld().isRemote || !(e.getWorld() instanceof WorldServer))
+			return;
+
+		ProjectileManager.onWorldUnloaded((WorldServer) e.getWorld());
 	}
 
 	@SubscribeEvent

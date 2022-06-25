@@ -1,6 +1,6 @@
 package kaktusz.geopolitika.commands;
 
-import kaktusz.geopolitika.commands.subcommands.CmdStateCooldown;
+import kaktusz.geopolitika.commands.subcommands.state.CmdStateCooldown;
 
 public class CmdState extends CommandRoot {
 	public CmdState() {

@@ -1,12 +1,10 @@
 package kaktusz.geopolitika.commands;
 
-import kaktusz.geopolitika.commands.subcommands.*;
+import kaktusz.geopolitika.commands.subcommands.region.*;
 import mcp.MethodsReturnNonnullByDefault;
 
 import javax.annotation.ParametersAreNonnullByDefault;
 
-@MethodsReturnNonnullByDefault
-@ParametersAreNonnullByDefault
 public class CmdRegion extends CommandRoot {
 
 	public CmdRegion() {

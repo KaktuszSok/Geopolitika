@@ -71,8 +71,10 @@ dependencies {
     // for more info...
     // http://www.gradle.org/docs/current/userguide/artifact_dependencies_tutorial.html
     // http://www.gradle.org/docs/current/userguide/dependency_management.html
-    compile "com.feed_the_beast.mods:FTBLib:${ftblib_version}"
-    deobfCompile "com.feed_the_beast.mods:FTBUtilities:${ftbutils_version}"
+    //compile "com.feed_the_beast.mods:FTBLib:${ftblib_version}"
+    compile "curse.maven:ftblib-237167:2985811"
+    //deobfCompile "com.feed_the_beast.mods:FTBUtilities:${ftbutils_version}"
+    compile "curse.maven:ftbutilities-237102:3157548"
     deobfProvided "curse.maven:xaerosminimap-263466:3728380"
     deobfProvided "curse.maven:xaerosworldmap-317780:3732792"
     runtimeOnly(deobfCompile("curse.maven:xaerosminimap-263466:3728380"))

@@ -6,6 +6,7 @@ geopolitika.error.cp_insufficient_state_authority=You do not have sufficient aut
 geopolitika.error.cp_break_other_state=This control point belongs to another state.
 geopolitika.error.cp_break_conflict_ongoing=A conflict is ongoing in this region, you may not break the control point!
 geopolitika.error.cp_highlight_cooldown=You must wait $s before revealing the occupiers' locations again.
+geopolitika.error.target_too_far=Target too far
 
 geopolitika.info.lose_war_score_death=%1$s has died: -%2$s war score in %3$s.
 geopolitika.info.gain_war_score_kill=%1$s killed a defender: +%2$s war score in %3$s.
@@ -36,5 +37,8 @@ geopolitika.commands.region.cooldown.usage=/region cooldown <minutes>
 geopolitika.commands.region.cooldown.success=Control point's cooldown has been set to %s minutes.
 geopolitika.commands.region.warscore.usage=/region warscore <state> <amount to add>
 geopolitika.commands.region.warscore.success=%1$s war score added for state %2$s in %3$s.
+
 geopolitika.commands.state.cooldown.usage=/state cooldown <state blocked from attacking> <state protected from an attack> <minutes>
 geopolitika.commands.state.cooldown.success=%1$s's cooldown for attacking %2$s has been set to %3$s minutes.
+
+geopolitika.commands.debug.room.usage=/gpdebug room

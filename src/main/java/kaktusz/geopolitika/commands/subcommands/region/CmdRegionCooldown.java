@@ -1,7 +1,8 @@
-package kaktusz.geopolitika.commands.subcommands;
+package kaktusz.geopolitika.commands.subcommands.region;
 
 import kaktusz.geopolitika.commands.CommandAssertions;
 import kaktusz.geopolitika.commands.CommandPermissions;
+import kaktusz.geopolitika.commands.subcommands.Subcommand;
 import kaktusz.geopolitika.tileentities.TileEntityControlPoint;
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.CommandException;

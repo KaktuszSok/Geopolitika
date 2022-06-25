@@ -1,9 +1,10 @@
-package kaktusz.geopolitika.commands.subcommands;
+package kaktusz.geopolitika.commands.subcommands.state;
 
 import com.feed_the_beast.ftblib.lib.data.ForgeTeam;
 import com.feed_the_beast.ftblib.lib.util.FinalIDObject;
 import kaktusz.geopolitika.commands.CommandAssertions;
 import kaktusz.geopolitika.commands.CommandPermissions;
+import kaktusz.geopolitika.commands.subcommands.Subcommand;
 import kaktusz.geopolitika.states.StatesManager;
 import kaktusz.geopolitika.states.StatesSavedData;
 import net.minecraft.command.CommandBase;

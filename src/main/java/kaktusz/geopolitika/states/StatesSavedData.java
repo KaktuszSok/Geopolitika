@@ -41,7 +41,6 @@ public class StatesSavedData extends WorldSavedData {
 		return instance;
 	}
 
-
 	public void setOccupationCooldown(short attackersId, short defendersId, int cooldownMinutes) {
 		setOccupationCooldownExpiry(attackersId, defendersId,
 				System.currentTimeMillis() + ((long) cooldownMinutes*60*1000));

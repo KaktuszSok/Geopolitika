@@ -1,8 +1,9 @@
-package kaktusz.geopolitika.commands.subcommands;
+package kaktusz.geopolitika.commands.subcommands.region;
 
 import com.feed_the_beast.ftblib.lib.data.ForgeTeam;
 import kaktusz.geopolitika.commands.CommandAssertions;
 import kaktusz.geopolitika.commands.CommandPermissions;
+import kaktusz.geopolitika.commands.subcommands.Subcommand;
 import kaktusz.geopolitika.states.StatesManager;
 import kaktusz.geopolitika.tileentities.TileEntityControlPoint;
 import net.minecraft.command.CommandException;

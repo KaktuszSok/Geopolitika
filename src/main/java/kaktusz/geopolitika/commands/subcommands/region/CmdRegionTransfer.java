@@ -1,13 +1,16 @@
-package kaktusz.geopolitika.commands.subcommands;
+package kaktusz.geopolitika.commands.subcommands.region;
 
 import com.feed_the_beast.ftblib.lib.data.ForgeTeam;
 import com.feed_the_beast.ftblib.lib.util.FinalIDObject;
 import kaktusz.geopolitika.commands.CommandAssertions;
 import kaktusz.geopolitika.commands.CommandPermissions;
+import kaktusz.geopolitika.commands.subcommands.Subcommand;
 import kaktusz.geopolitika.states.StatesManager;
 import kaktusz.geopolitika.tileentities.TileEntityControlPoint;
 import kaktusz.geopolitika.util.MessageUtils;
-import net.minecraft.command.*;
+import net.minecraft.command.CommandException;
+import net.minecraft.command.ICommandSender;
+import net.minecraft.command.WrongUsageException;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.math.BlockPos;
@@ -16,30 +19,34 @@ import javax.annotation.Nullable;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class CmdRegionWarScore extends Subcommand {
-	public CmdRegionWarScore(String name, CommandPermissions permissionLevel) {
+public class CmdRegionTransfer extends Subcommand {
+	public CmdRegionTransfer(String name, CommandPermissions permissionLevel) {
 		super(name, permissionLevel);
 	}
 
 	@Override
 	public void execute(MinecraftServer server, ICommandSender sender, String rootCommandTranslationKey, boolean adminMode, String[] args) throws CommandException {
-		if(args.length != 2)
+		if(args.length != 1)
 			throw new WrongUsageException("");
+
 		EntityPlayerMP player = CommandAssertions.senderMustBePlayer(sender);
+		ForgeTeam state = CommandAssertions.playerMustBeInState(player);
 		TileEntityControlPoint controlPoint = CommandAssertions.entityMustBeInClaimedRegion(player);
 
-		ForgeTeam targetState = CommandAssertions.specifiedStateMustBeValid(args[0]);
-		int amountToAdd = CommandBase.parseInt(args[1]);
-
-		if(!controlPoint.isBeingOccupiedBy(targetState)) {
-			controlPoint.tryBeginOccupation(targetState, adminMode);
-			if (!controlPoint.isBeingOccupiedBy(targetState)) {
-				throw new CommandException(MessageUtils.getCommandErrorKey("region_must_be_occupiable_by_specified_state"));
-			}
+		if(!adminMode &&
+				(!state.equalsTeam(controlPoint.getOwner()) ||
+				!StatesManager.hasPlayerModifyClaimsAuthority(player))) {
+			throw new CommandException(MessageUtils.getCommandErrorKey("region_insufficient_authority"));
 		}
 
-		sendSuccessMessage(sender, rootCommandTranslationKey, amountToAdd, targetState.getCommandTitle(), controlPoint.getRegionName(true));
-		controlPoint.addWarScore(targetState, amountToAdd);
+		if(controlPoint.isConflictOngoing()) {
+			throw new CommandException(MessageUtils.getCommandErrorKey("region_conflict_ongoing"));
+		}
+
+		ForgeTeam targetState = CommandAssertions.specifiedStateMustBeValid(args[0]);
+
+		controlPoint.setOwner(targetState);
+		controlPoint.claimChunks(false);
 	}
 
 	@Override

@@ -289,6 +289,7 @@ public class TileEntityControlPoint extends TileEntity implements ITickable {
 
 	public void beginConflict() {
 		claimChunks(true);
+		highlightOccupiersCooldownEndTime = System.currentTimeMillis() + ModConfig.highlightOccupiersCooldown;
 	}
 
 	public void endConflict() {
