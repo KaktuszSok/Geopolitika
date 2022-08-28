@@ -1,6 +1,7 @@
 package kaktusz.geopolitika.buildings;
 
 import kaktusz.geopolitika.Geopolitika;
+import kaktusz.geopolitika.util.BetterToString;
 import kaktusz.geopolitika.util.MutableBlockPosition;
 import kaktusz.geopolitika.util.RotationUtils;
 import mcp.MethodsReturnNonnullByDefault;
@@ -10,6 +11,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.World;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
 import java.util.*;
@@ -17,20 +19,20 @@ import java.util.function.Supplier;
 
 @ParametersAreNonnullByDefault
 @MethodsReturnNonnullByDefault
-public class RoomInfo {
+public class RoomInfo implements BetterToString {
 
-	private static boolean DEBUG_MODE = true;
-	private static boolean DEEP_DEBUG = false;
+	private static final boolean DEBUG_MODE = true;
+	private static final boolean DEEP_DEBUG = false;
 	private static final int MAX_SIZE_HORIZONTAL = 65;
-	private static final int MAX_SIZE_VERTICAL = 20;
+	private static final int MAX_SIZE_VERTICAL = 64;
 	private static final int MAX_VOLUME = MAX_SIZE_HORIZONTAL*MAX_SIZE_VERTICAL*MAX_SIZE_HORIZONTAL/3;
 
 	/**
 	 * Accessible floor area in blocks (square metres).
 	 */
-	private int floorArea = 0;
-	private final List<BlockPos> possibleConnectedRooms = new ArrayList<>();
-	private final Set<BlockPos> encounteredDoors = new HashSet<>();
+	protected int floorArea = 0;
+	protected final List<BlockPos> possibleConnectedRooms = new ArrayList<>();
+	protected final Set<BlockPos> encounteredDoors = new HashSet<>();
 
 	public int getFloorArea() {
 		return floorArea;
@@ -50,7 +52,7 @@ public class RoomInfo {
 	}
 
 	@Nullable
-	public static RoomInfo calculateRoom(World world, BlockPos startPos, Set<BlockPos> accessibleBlocksCache, Set<ChunkPos> chunksCache, Supplier<RoomInfo> roomSupplier) {
+	public static <T extends RoomInfo> T calculateRoom(World world, BlockPos startPos, Set<BlockPos> accessibleBlocksCache, Set<ChunkPos> chunksCache, Supplier<T> roomSupplier) {
 
 		//0. ensure we are starting on a floor
 		BlockPos floorSearchStartBlock = startPos.down();
@@ -115,7 +117,7 @@ public class RoomInfo {
 		}
 
 		//2. follow floor to calculate room's info (we only consider accessible regions)
-		RoomInfo info = roomSupplier.get();
+		T info = roomSupplier.get();
 		blocksToCheck.add(floorSearchStartBlock);
 		while (!blocksToCheck.isEmpty()) {
 			BlockPos currBlock = blocksToCheck.pop();
@@ -248,10 +250,13 @@ public class RoomInfo {
 
 	@Override
 	public String toString() {
-		return "RoomInfo{" +
-				"floorArea=" + floorArea +
-				", possibleConnectedRooms=" + possibleConnectedRooms +
-				'}';
+		return toStringInternal();
+	}
+
+	@Override
+	public void modifyToString(@Nonnull Map<String, Object> propertiesToDisplay) {
+		propertiesToDisplay.put("floorArea", floorArea);
+		propertiesToDisplay.put("#possibleConnectedRooms", possibleConnectedRooms.size());
 	}
 
 	private static void debugLog(String str) {

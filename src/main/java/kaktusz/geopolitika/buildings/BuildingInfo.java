@@ -1,20 +1,21 @@
 package kaktusz.geopolitika.buildings;
 
-import kaktusz.geopolitika.Geopolitika;
+import kaktusz.geopolitika.util.BetterToString;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.World;
 
+import javax.annotation.Nonnull;
 import java.util.*;
 import java.util.function.Supplier;
 
-public class BuildingInfo {
+public abstract class BuildingInfo<T extends RoomInfo> implements BetterToString {
 	private static final int MAX_CHUNKS_OCCUPIED = 25;
 
-	public final List<RoomInfo> rooms = new ArrayList<>();
+	public final List<T> rooms = new ArrayList<>();
 
 	/**
-	 * Calculate a house starting from some position
+	 * Calculate a building starting from some position
 	 */
 	public BuildingInfo(World world, BlockPos startPos) {
 		Set<ChunkPos> chunksCache = new HashSet<>();
@@ -29,7 +30,7 @@ public class BuildingInfo {
 			}
 
 			BlockPos roomStartPoint = roomCandidates.poll();
-			RoomInfo foundRoom = RoomInfo.calculateRoom(world, roomStartPoint, accessibleBlocksCache, chunksCache, getRoomSupplier());
+			T foundRoom = RoomInfo.calculateRoom(world, roomStartPoint, accessibleBlocksCache, chunksCache, getRoomSupplier());
 			accessibleBlocksCache.add(roomStartPoint);
 			if(foundRoom == null) {
 				continue; //not a room
@@ -44,9 +45,7 @@ public class BuildingInfo {
 		return !rooms.isEmpty();
 	}
 
-	protected Supplier<RoomInfo> getRoomSupplier() {
-		return RoomInfo::new;
-	}
+	protected abstract Supplier<T> getRoomSupplier();
 
 	public int getTotalFloorArea() {
 		return rooms.stream().mapToInt(RoomInfo::getFloorArea).sum();
@@ -62,9 +61,11 @@ public class BuildingInfo {
 
 	@Override
 	public String toString() {
-		return "HouseInfo{" +
-				"totalArea=" + getTotalFloorArea() +
-				", rooms=" + rooms.toString() +
-				'}';
+		return toStringInternal();
+	}
+
+	public void modifyToString(@Nonnull Map<String, Object> propertiesToDisplay) {
+		propertiesToDisplay.put("totalArea", getTotalFloorArea());
+		propertiesToDisplay.put("rooms", rooms.toString());
 	}
 }

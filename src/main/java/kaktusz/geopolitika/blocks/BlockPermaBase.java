@@ -1,6 +1,5 @@
 package kaktusz.geopolitika.blocks;
 
-import kaktusz.geopolitika.permaloaded.Farm;
 import kaktusz.geopolitika.permaloaded.PermaloadedSavedData;
 import kaktusz.geopolitika.permaloaded.PermaloadedTileEntity;
 import mcp.MethodsReturnNonnullByDefault;

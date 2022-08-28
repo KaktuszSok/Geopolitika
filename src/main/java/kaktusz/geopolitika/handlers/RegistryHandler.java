@@ -1,18 +1,28 @@
 package kaktusz.geopolitika.handlers;
 
+import kaktusz.geopolitika.Geopolitika;
+import kaktusz.geopolitika.client.rendering.RenderCustomVehicle;
+import kaktusz.geopolitika.entities.EntityCustomVehicle;
 import kaktusz.geopolitika.init.ModBlocks;
 import kaktusz.geopolitika.init.ModItems;
 import kaktusz.geopolitika.util.IHasModel;
 import net.minecraft.block.Block;
 import net.minecraft.item.Item;
+import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.client.event.ModelRegistryEvent;
 import net.minecraftforge.event.RegistryEvent;
+import net.minecraftforge.fml.client.registry.RenderingRegistry;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.minecraftforge.fml.common.registry.EntityEntry;
+import net.minecraftforge.fml.common.registry.EntityEntryBuilder;
+import net.minecraftforge.fml.common.registry.EntityRegistry;
 
 @Mod.EventBusSubscriber
 public class RegistryHandler {
+
+	private static int entityId = 0;
 
 	public static void init(FMLInitializationEvent e) {
 		//NetworkRegistry.INSTANCE.registerGuiHandler(Geopolitika.INSTANCE, new GuiProxy());
@@ -44,5 +54,24 @@ public class RegistryHandler {
 				((IHasModel)block).registerModels();
 			}
 		}
+
+		registerEntityRenderers();
+	}
+
+	@SubscribeEvent
+	public static void onEntityRegister(RegistryEvent.Register<EntityEntry> event) {
+		ResourceLocation customVehicleRL = new ResourceLocation(Geopolitika.MODID, "custom_vehicle");
+		event.getRegistry().registerAll(
+				EntityEntryBuilder.create()
+				.entity(EntityCustomVehicle.class)
+				.id(customVehicleRL, entityId++)
+				.name(customVehicleRL.getPath())
+				.tracker(256, 3, true)
+				.build()
+		);
+	}
+
+	private static void registerEntityRenderers() {
+		RenderingRegistry.registerEntityRenderingHandler(EntityCustomVehicle.class, RenderCustomVehicle::new);
 	}
 }

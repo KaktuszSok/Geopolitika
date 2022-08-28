@@ -27,8 +27,9 @@ import net.minecraft.world.WorldServer;
 
 public class ItemProjectileTest extends Item implements IHasModel {
 
-	private double shootVelocity = 4d;
-	private double inaccuracy = 0.015d;
+	private double shootVelocity = 3.25d;
+	private double inaccuracy = 0.025d;
+	private float explosionStrength = 5f;
 
 	public ItemProjectileTest(String name, CreativeTabs tab) {
 		setTranslationKey(name);
@@ -101,6 +102,7 @@ public class ItemProjectileTest extends Item implements IHasModel {
 	public void shootProjectile(WorldServer world, Vec3d pos, Vec3d vel, Entity shootingEntity) {
 		ShellProjectile proj = new ShellProjectile(world, pos, vel);
 		proj.setShootingEntity(shootingEntity);
+		proj.explosionStrength = explosionStrength;
 		ProjectileManager.get(world).addProjectile(proj);
 	}
 

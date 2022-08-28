@@ -1,7 +1,6 @@
 package kaktusz.geopolitika.permaloaded.projectiles;
 
 import kaktusz.geopolitika.util.ParticleUtils;
-import net.minecraft.entity.item.EntityTNTPrimed;
 import net.minecraft.util.EnumParticleTypes;
 import net.minecraft.util.math.RayTraceResult;
 import net.minecraft.util.math.Vec3d;
