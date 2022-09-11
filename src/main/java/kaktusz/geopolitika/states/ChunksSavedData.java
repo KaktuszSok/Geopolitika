@@ -25,6 +25,9 @@ import java.util.Map;
 @ParametersAreNonnullByDefault
 public class ChunksSavedData extends WorldSavedData {
 
+	/**
+	 * Info about an owned chunk.
+	 */
 	public static class ChunkInfo {
 		public BlockPos controlPointPos;
 		/**

@@ -11,6 +11,7 @@ public class ModCommands {
 		e.registerServerCommand(new CmdRegion());
 		e.registerServerCommand(new CmdRegion().setAdminMode(true));
 		e.registerServerCommand(new CmdState());
+		e.registerServerCommand(new CmdState().setAdminMode(true));
 		e.registerServerCommand(new CmdDebug());
 	}
 }

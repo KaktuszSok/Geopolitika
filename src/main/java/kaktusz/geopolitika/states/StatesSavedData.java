@@ -7,18 +7,43 @@ import net.minecraft.nbt.NBTTagList;
 import net.minecraft.world.World;
 import net.minecraft.world.storage.MapStorage;
 import net.minecraft.world.storage.WorldSavedData;
+import net.minecraftforge.common.util.Constants;
 
+import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 @MethodsReturnNonnullByDefault
 @ParametersAreNonnullByDefault
 public class StatesSavedData extends WorldSavedData {
 	private static final String DATA_NAME = Geopolitika.MODID + "_statesData";
-	private static final String COOLDOWNS_NBT_TAG = "cooldowns";
 
-	private final Map<Short, Map<Short, Long>> cooldowns = new HashMap<>();
+	private static class StateData {
+		public final short stateId;
+		public long balance = 0;
+		public final Map<Short, Long> cooldowns = new HashMap<>();
+
+		public StateData(short stateId) {
+			this.stateId = stateId;
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) return true;
+			if (o == null || getClass() != o.getClass()) return false;
+			StateData stateData = (StateData) o;
+			return stateId == stateData.stateId;
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash(stateId);
+		}
+	}
+
+	private final Map<Short, StateData> stateDatas = new HashMap<>();
 	private World world;
 
 	public StatesSavedData() {
@@ -41,14 +66,34 @@ public class StatesSavedData extends WorldSavedData {
 		return instance;
 	}
 
+	private StateData getStateData(short stateId) {
+		return stateDatas.computeIfAbsent(stateId, StateData::new);
+	}
+
+	@Nullable
+	private StateData getStateDataOrNull(short stateId) {
+		return stateDatas.get(stateId);
+	}
+
+	public long getBalance(short stateId) {
+		StateData stateData = getStateDataOrNull(stateId);
+		if(stateData == null)
+			return 0;
+		return stateData.balance;
+	}
+
+	public void addBalance(short stateId, long amount) {
+		getStateData(stateId).balance += amount;
+		markDirty();
+	}
+
 	public void setOccupationCooldown(short attackersId, short defendersId, int cooldownMinutes) {
 		setOccupationCooldownExpiry(attackersId, defendersId,
 				System.currentTimeMillis() + ((long) cooldownMinutes*60*1000));
 	}
 
 	private void setOccupationCooldownExpiry(short attackersId, short defendersId, long expiryTime) {
-		Map<Short, Long> defenderCooldowns = cooldowns.computeIfAbsent(defendersId, id -> new HashMap<>());
-		defenderCooldowns.put(attackersId, expiryTime);
+		getStateData(defendersId).cooldowns.put(attackersId, expiryTime);
 		markDirty();
 	}
 
@@ -56,10 +101,10 @@ public class StatesSavedData extends WorldSavedData {
 	 * Gets how long the attackers must wait until starting a new occupation of the defenders
 	 */
 	public long getOccupationCooldown(short attackersId, short defendersId) {
-		Map<Short, Long> defenderCooldowns = cooldowns.get(defendersId);
-		if(defenderCooldowns == null)
+		StateData stateData = getStateDataOrNull(defendersId);
+		if(stateData == null)
 			return 0;
-		Long cooldown_ms = defenderCooldowns.get(attackersId);
+		Long cooldown_ms = stateData.cooldowns.get(attackersId);
 		if(cooldown_ms == null)
 			return 0;
 
@@ -68,18 +113,19 @@ public class StatesSavedData extends WorldSavedData {
 
 	@Override
 	public void readFromNBT(NBTTagCompound nbt) {
-		NBTTagList cooldownsNbt = nbt.getTagList(COOLDOWNS_NBT_TAG, 10);
-		for (int i = 0; i < cooldownsNbt.tagCount(); i++) {
-			NBTTagCompound stateCooldowns = cooldownsNbt.getCompoundTagAt(i);
-			short state = stateCooldowns.getShort("state");
-			NBTTagList cooldownsList = stateCooldowns.getTagList("list", 10);
+		NBTTagList statesNBT = nbt.getTagList("states", Constants.NBT.TAG_COMPOUND);
+		for (int i = 0; i < statesNBT.tagCount(); i++) {
+			NBTTagCompound stateTag = statesNBT.getCompoundTagAt(i);
+			short stateId = stateTag.getShort("id");
+			getStateData(stateId).balance = stateTag.getLong("balance");
+			NBTTagList cooldownsList = stateTag.getTagList("cooldowns", 10);
 			for (int j = 0; j < cooldownsList.tagCount(); j++) {
 				NBTTagCompound cooldownNbt = cooldownsList.getCompoundTagAt(j);
 				long expiry = cooldownNbt.getLong("expiry");
 				if(expiry <= System.currentTimeMillis())
 					continue;
 				short attacker = cooldownNbt.getShort("attacker");
-				setOccupationCooldownExpiry(attacker, state, expiry);
+				setOccupationCooldownExpiry(attacker, stateId, expiry);
 			}
 		}
 	}
@@ -87,13 +133,14 @@ public class StatesSavedData extends WorldSavedData {
 	@Override
 	public NBTTagCompound writeToNBT(NBTTagCompound compound) {
 		NBTTagCompound nbt = new NBTTagCompound();
-		NBTTagList cooldownsNbt = new NBTTagList();
-		cooldowns.forEach(
-				(state, cooldowns) -> {
-					NBTTagCompound stateCooldowns = new NBTTagCompound();
-					stateCooldowns.setShort("state", state);
+		NBTTagList statesNbt = new NBTTagList();
+		stateDatas.forEach(
+				(stateId, stateData) -> {
+					NBTTagCompound stateTag = new NBTTagCompound();
+					stateTag.setShort("id", stateId);
+					stateTag.setLong("balance", stateData.balance);
 					NBTTagList cooldownsListNbt = new NBTTagList();
-					cooldowns.forEach(
+					stateData.cooldowns.forEach(
 							(attacker, expiry) -> {
 								if(expiry < System.currentTimeMillis())
 									return;
@@ -105,12 +152,12 @@ public class StatesSavedData extends WorldSavedData {
 					);
 					if(cooldownsListNbt.isEmpty())
 						return;
-					stateCooldowns.setTag("list", cooldownsListNbt);
+					stateTag.setTag("cooldowns", cooldownsListNbt);
 
-					cooldownsNbt.appendTag(stateCooldowns);
+					statesNbt.appendTag(stateTag);
 				}
 		);
-		nbt.setTag(COOLDOWNS_NBT_TAG, cooldownsNbt);
+		nbt.setTag("states", statesNbt);
 		return nbt;
 	}
 }
