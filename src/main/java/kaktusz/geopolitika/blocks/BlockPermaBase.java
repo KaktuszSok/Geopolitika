@@ -1,7 +1,7 @@
 package kaktusz.geopolitika.blocks;
 
 import kaktusz.geopolitika.permaloaded.PermaloadedSavedData;
-import kaktusz.geopolitika.permaloaded.PermaloadedTileEntity;
+import kaktusz.geopolitika.permaloaded.tileentities.PermaloadedTileEntity;
 import mcp.MethodsReturnNonnullByDefault;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.state.IBlockState;
@@ -18,6 +18,12 @@ public abstract class BlockPermaBase<T extends PermaloadedTileEntity> extends Bl
 
 	public BlockPermaBase(String name, Material material, CreativeTabs tab) {
 		super(name, material, tab);
+	}
+
+	/**
+	 * Registers the permaloaded tile entity of type T with the permaload entity factory.
+	 */
+	public void registerPermaloadedTE() {
 		T temp = createPermaTE(new BlockPos(0,0,0));
 		PermaloadedSavedData.entityFactory.put(temp.getID(), this::createPermaTE);
 	}

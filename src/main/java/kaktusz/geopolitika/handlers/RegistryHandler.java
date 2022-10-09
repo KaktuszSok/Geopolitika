@@ -3,6 +3,7 @@ package kaktusz.geopolitika.handlers;
 import kaktusz.geopolitika.Geopolitika;
 import kaktusz.geopolitika.client.rendering.RenderCustomVehicle;
 import kaktusz.geopolitika.entities.EntityCustomVehicle;
+import kaktusz.geopolitika.entities.SolidEntityPart;
 import kaktusz.geopolitika.init.ModBlocks;
 import kaktusz.geopolitika.init.ModItems;
 import kaktusz.geopolitika.util.IHasModel;
@@ -61,11 +62,20 @@ public class RegistryHandler {
 	@SubscribeEvent
 	public static void onEntityRegister(RegistryEvent.Register<EntityEntry> event) {
 		ResourceLocation customVehicleRL = new ResourceLocation(Geopolitika.MODID, "custom_vehicle");
+		ResourceLocation solidPartRL = new ResourceLocation(Geopolitika.MODID, "solid_part");
+
 		event.getRegistry().registerAll(
 				EntityEntryBuilder.create()
 				.entity(EntityCustomVehicle.class)
 				.id(customVehicleRL, entityId++)
 				.name(customVehicleRL.getPath())
+				.tracker(256, 3, true)
+				.build(),
+
+				EntityEntryBuilder.create()
+				.entity(SolidEntityPart.class)
+				.id(solidPartRL, entityId++)
+				.name(solidPartRL.getPath())
 				.tracker(256, 3, true)
 				.build()
 		);

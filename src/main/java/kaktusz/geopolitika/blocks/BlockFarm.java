@@ -1,6 +1,6 @@
 package kaktusz.geopolitika.blocks;
 
-import kaktusz.geopolitika.permaloaded.Farm;
+import kaktusz.geopolitika.permaloaded.tileentities.Farm;
 import kaktusz.geopolitika.permaloaded.PermaloadedSavedData;
 import mcp.MethodsReturnNonnullByDefault;
 import net.minecraft.block.material.Material;

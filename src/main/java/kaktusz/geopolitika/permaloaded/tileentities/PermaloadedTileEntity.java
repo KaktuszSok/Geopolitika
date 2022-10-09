@@ -1,5 +1,6 @@
-package kaktusz.geopolitika.permaloaded;
+package kaktusz.geopolitika.permaloaded.tileentities;
 
+import kaktusz.geopolitika.permaloaded.PermaloadedEntity;
 import mcp.MethodsReturnNonnullByDefault;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTUtil;

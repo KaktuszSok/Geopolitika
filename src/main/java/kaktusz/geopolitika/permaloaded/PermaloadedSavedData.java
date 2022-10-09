@@ -1,9 +1,15 @@
 package kaktusz.geopolitika.permaloaded;
 
+import com.feed_the_beast.ftblib.lib.data.ForgeTeam;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.MultimapBuilder;
 import kaktusz.geopolitika.Geopolitika;
-import kaktusz.geopolitika.permaloaded.projectiles.ProjectileManager;
+import kaktusz.geopolitika.blocks.BlockPermaBase;
+import kaktusz.geopolitika.permaloaded.tileentities.ExclusiveZoneMarker;
+import kaktusz.geopolitika.permaloaded.tileentities.PTEInterface;
+import kaktusz.geopolitika.permaloaded.tileentities.PermaloadedTileEntity;
+import kaktusz.geopolitika.states.StatesManager;
+import kaktusz.geopolitika.util.PrecalcSpiral;
 import mcp.MethodsReturnNonnullByDefault;
 import net.minecraft.nbt.NBTBase;
 import net.minecraft.nbt.NBTTagCompound;
@@ -12,7 +18,6 @@ import net.minecraft.nbt.NBTUtil;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.World;
-import net.minecraft.world.WorldServer;
 import net.minecraft.world.chunk.Chunk;
 import net.minecraft.world.storage.MapStorage;
 import net.minecraft.world.storage.WorldSavedData;
@@ -20,10 +25,7 @@ import net.minecraftforge.common.util.Constants;
 
 import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Function;
 
 @MethodsReturnNonnullByDefault
@@ -35,9 +37,18 @@ public class PermaloadedSavedData extends WorldSavedData {
 		entityFactory.put(ExclusiveZoneMarker.ID, ExclusiveZoneMarker::new);
 	}
 
+	/**
+	 * Register a permaloaded tile entity block and its permaloaded tile entity.
+	 * @return The given block.
+	 */
+	public static <T extends BlockPermaBase<T2>, T2 extends PermaloadedTileEntity> T registerPTEBlock(T block) {
+		block.registerPermaloadedTE();
+		return block;
+	}
+
 	private World world;
 	@SuppressWarnings("UnstableApiUsage")
-	private Multimap<ChunkPos, PermaloadedTileEntity> chunkTileEntities = MultimapBuilder.hashKeys().hashSetValues().build();
+	private final Multimap<ChunkPos, PermaloadedTileEntity> chunkTileEntities = MultimapBuilder.hashKeys().hashSetValues().build();
 
 	public PermaloadedSavedData() {
 		super(DATA_NAME);
@@ -66,21 +77,102 @@ public class PermaloadedSavedData extends WorldSavedData {
 	public <T extends PermaloadedTileEntity> Collection<T> findTileEntitiesOfType(Class<T> type, ChunkPos chunk) {
 		return findTileEntitiesOfType(type, chunk, 0);
 	}
-
 	public <T extends PermaloadedTileEntity> Collection<T> findTileEntitiesOfType(Class<T> type, ChunkPos chunk, int radius) {
+		return findTileEntitiesByTypeOrInterface(type, chunk, radius);
+	}
+
+	public <T extends PTEInterface> Collection<T> findTileEntitiesByInterface(Class<T> type, ChunkPos chunk) {
+		return findTileEntitiesByInterface(type, chunk, 0);
+	}
+	public <T extends PTEInterface> Collection<T> findTileEntitiesByInterface(Class<T> type, ChunkPos chunk, int radius) {
+		return findTileEntitiesByTypeOrInterface(type, chunk, radius);
+	}
+
+	private <T> Collection<T> findTileEntitiesByTypeOrInterface(Class<T> type, ChunkPos chunk, int radius) {
 		Collection<T> found = new ArrayList<>();
 		for (int x = -radius; x <= radius; x++) {
 			for (int z = -radius; z <= radius; z++) {
 				ChunkPos curr = new ChunkPos(chunk.x + x, chunk.z + z);
-				for (PermaloadedTileEntity te : chunkTileEntities.get(curr)) {
-					if(type.isInstance(te)) {
+				for (PermaloadedTileEntity pte : chunkTileEntities.get(curr)) {
+					if(type.isInstance(pte)) {
 						//noinspection unchecked
-						found.add((T)te);
+						found.add((T)pte);
 					}
 				}
 			}
 		}
 		return found;
+	}
+
+	/**
+	 * Checks whether there are any PermaloadedTileEntities of this type within radius chunks of the given chunk.
+	 */
+	public <T extends PermaloadedTileEntity> boolean hasAnyTileEntitiesOfType(Class<T> type, ChunkPos chunk, int radius) {
+		for (int x = -radius; x <= radius; x++) {
+			for (int z = -radius; z <= radius; z++) {
+				ChunkPos curr = new ChunkPos(chunk.x + x, chunk.z + z);
+				for (PermaloadedTileEntity te : chunkTileEntities.get(curr)) {
+					if(type.isInstance(te)) {
+						return true;
+					}
+				}
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Finds permaloaded tile entities one by one, starting with the centre chunk and moving outwards.
+	 * PTEs within the same chunk are ordered arbitrarily.
+	 * This iterator should not be persisted between ticks.
+	 * @param state If not null, will skip over any chunks owned by a different state than this. If null, will not skip any chunks.
+	 */
+	public <T> Iterator<T> iterateTileEntitiesOutwards(Class<T> type, ChunkPos chunk, PrecalcSpiral spiral, @Nullable ForgeTeam state) {
+		return new Iterator<T>() {
+			private int spiralIdx = 0;
+			private Iterator<PermaloadedTileEntity> currChunkIter = null;
+			private T next = precalcNext();
+
+			@Override
+			public boolean hasNext() {
+				return next != null;
+			}
+
+			@Override
+			public T next() {
+				T ret = next;
+				next = precalcNext();
+				return ret;
+			}
+
+			@Nullable
+			private T precalcNext() {
+				while (spiralIdx < spiral.length) {
+					if(currChunkIter == null) {
+						currChunkIter = chunkTileEntities.get(spiral.positions[spiralIdx]).iterator();
+					}
+					while(currChunkIter.hasNext()) {
+						PermaloadedTileEntity pte = currChunkIter.next();
+						if(type.isInstance(pte)) { //found PTE of valid type!
+							//noinspection unchecked
+							return (T)pte;
+						}
+					}
+					//finished the current chunk iterator, moving on to the next valid chunk.
+					while (true) {
+						spiralIdx++;
+						if(state == null || spiralIdx >= spiral.length) //only increment once if we don't care about state. Don't increment past the spiral's length.
+							break;
+						ChunkPos chunkPos = spiral.positions[spiralIdx];
+						ForgeTeam owner = StatesManager.getChunkOwner(chunkPos.x, chunkPos.z, world);
+						if(!owner.isValid() || owner.equalsTeam(state)) //we found an unclaimed chunk or a chunk owned by our team - stop searching
+							break;
+					}
+					currChunkIter = null;
+				}
+				return null;
+			}
+		};
 	}
 
 	@Override

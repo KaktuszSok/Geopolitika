@@ -1,0 +1,73 @@
+package kaktusz.geopolitika.networking;
+
+import io.netty.buffer.ByteBuf;
+import kaktusz.geopolitika.integration.MinimapIntegrationHelper;
+import kaktusz.geopolitika.permaloaded.PermaloadedSavedData;
+import kaktusz.geopolitika.permaloaded.tileentities.DisplayablePTE;
+import kaktusz.geopolitika.permaloaded.tileentities.PTEDisplay;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.ChunkPos;
+import net.minecraft.world.World;
+import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
+import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
+import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
+
+import java.util.HashMap;
+import java.util.Map;
+
+public class PTEDisplaysSyncPacket implements IMessage {
+
+	private static final int VIEW_DISTANCE = 16;
+
+	private final Map<BlockPos, PTEDisplay> data = new HashMap<>();
+
+	@SuppressWarnings("unused") //required by forge
+	public PTEDisplaysSyncPacket() {
+
+	}
+
+	public PTEDisplaysSyncPacket(BlockPos viewCentre, World world) {
+		ChunkPos chunkPos = new ChunkPos(viewCentre);
+		data.clear();
+		for (DisplayablePTE displayablePTE : PermaloadedSavedData.get(world)
+				.findTileEntitiesByInterface(DisplayablePTE.class, chunkPos, VIEW_DISTANCE))
+		{
+			data.put(displayablePTE.getTileEntity().getPosition(), displayablePTE.getDisplay());
+		}
+	}
+
+	@Override
+	public void fromBytes(ByteBuf buf) {
+		data.clear();
+		int size = buf.readInt();
+		for (int i = 0; i < size; i++) {
+			BlockPos pos = new BlockPos(buf.readInt(), buf.readShort(), buf.readInt());
+			PTEDisplay display = new PTEDisplay(buf);
+			data.put(pos, display);
+		}
+	}
+
+	@Override
+	public void toBytes(ByteBuf buf) {
+		buf.writeInt(data.size());
+		for (Map.Entry<BlockPos, PTEDisplay> kvp : data.entrySet()) {
+			BlockPos pos = kvp.getKey();
+			buf.writeInt(pos.getX()).writeShort(pos.getY()).writeInt(pos.getZ());
+			kvp.getValue().toBytes(buf);
+		}
+	}
+
+	public static class PTEDisplaysSyncHandler implements IMessageHandler<PTEDisplaysSyncPacket, IMessage> {
+
+		@Override
+		public IMessage onMessage(PTEDisplaysSyncPacket message, MessageContext ctx) {
+			//copy over data from packet to minimap helper so the client can render it
+			Map<BlockPos, PTEDisplay> dataDestination = MinimapIntegrationHelper.getPTEDisplaysMap();
+			dataDestination.clear();
+			for (Map.Entry<BlockPos, PTEDisplay> kvp : message.data.entrySet()) {
+				dataDestination.put(kvp.getKey(), kvp.getValue());
+			}
+			return null;
+		}
+	}
+}

@@ -1,6 +1,5 @@
 package kaktusz.geopolitika.client.rendering;
 
-import kaktusz.geopolitika.Geopolitika;
 import kaktusz.geopolitika.entities.EntityCustomVehicle;
 import mcp.MethodsReturnNonnullByDefault;
 import net.minecraft.block.state.IBlockState;
@@ -43,6 +42,9 @@ public class RenderCustomVehicle extends Render<EntityCustomVehicle> {
 
 	@Override
 	public void doRender(EntityCustomVehicle entity, double x, double y, double z, float entityYaw, float partialTicks) {
+		x -= entity.getOriginOffset().x;
+		y -= entity.getOriginOffset().y;
+		z -= entity.getOriginOffset().z;
 		for (Map.Entry<Vec3i, IBlockState> kvp : entity.getStates().entrySet()) {
 			Vec3i localPos = kvp.getKey();
 			renderBlock(
@@ -62,7 +64,7 @@ public class RenderCustomVehicle extends Render<EntityCustomVehicle> {
 		{
 			World world = entity.world;
 
-			if (iblockstate != world.getBlockState(new BlockPos(entity)) && iblockstate.getRenderType() != EnumBlockRenderType.INVISIBLE)
+			if (iblockstate.getRenderType() != EnumBlockRenderType.INVISIBLE)
 			{
 				this.bindTexture(TextureMap.LOCATION_BLOCKS_TEXTURE);
 				GlStateManager.pushMatrix();

@@ -1,5 +1,7 @@
 package kaktusz.geopolitika.integration;
 
+import kaktusz.geopolitika.Geopolitika;
+import kaktusz.geopolitika.permaloaded.tileentities.PTEDisplay;
 import kaktusz.geopolitika.states.ClientStatesManager;
 import kaktusz.geopolitika.states.CommonStateInfo;
 import kaktusz.geopolitika.util.ReflectionUtils;
@@ -8,7 +10,9 @@ import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.entity.Entity;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.World;
 import net.minecraftforge.client.event.GuiOpenEvent;
@@ -33,9 +37,7 @@ import xaero.map.region.MapTile;
 import xaero.map.region.MapTileChunk;
 import xaero.minimap.XaeroMinimap;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Mod.EventBusSubscriber({Side.CLIENT})
 @SideOnly(Side.CLIENT)
@@ -110,7 +112,43 @@ public class XaeroWorldmapIntegration {
 			claimedChunksCache.forEach((cpos, owner) -> {
 				MinimapIntegrationHelper.drawChunkClaim(cpos.x << 4, cpos.z << 4, owner, cpos.x, cpos.z, mapProcessor.getWorld());
 			});
+
+			//draw PermaloadedTileEntities
+			RenderHelper.enableGUIStandardItemLighting();
+			List<PTEDisplay> hovered = new ArrayList<>();
+			BlockPos closestHoveredBlockPos = null;
+			double closestHoveredDist = Double.POSITIVE_INFINITY;
+			int mouseBlockPosX = screenToBlockPos(scaledMouseX, cameraX, scale, width);
+			int mouseBlockPosZ = screenToBlockPos(scaledMouseY, cameraZ, scale, height);
+			Iterator<Map.Entry<BlockPos, PTEDisplay>> displaysSorted = MinimapIntegrationHelper.getPTEDisplaysMap().entrySet().stream()
+					.sorted(Comparator.comparingInt(entry -> entry.getValue().zOrder)).iterator();
+			while (displaysSorted.hasNext())
+			{
+				Map.Entry<BlockPos, PTEDisplay> kvp = displaysSorted.next();
+				BlockPos bp = kvp.getKey();
+				PTEDisplay disp = kvp.getValue();
+
+				MinimapIntegrationHelper.drawPTEDisplay(disp, bp.getX(), bp.getZ(), getUserScale());
+				double dx = Math.abs(mouseBlockPosX - bp.getX());
+				double dz = Math.abs(mouseBlockPosZ - bp.getZ());
+				double maxHoverDist = 16d/getUserScale();
+				if(dx < maxHoverDist && dz < maxHoverDist && dx+dz <= closestHoveredDist) {
+					if(closestHoveredBlockPos == null
+							|| closestHoveredBlockPos.getX() != bp.getX()
+							|| closestHoveredBlockPos.getZ() != bp.getZ()) {
+						hovered.clear(); //clear the list if we are NOT hovering over overlapping blocks (overlapping = same XZ)
+					}
+					closestHoveredBlockPos = bp;
+					hovered.add(disp);
+					closestHoveredDist = dx+dz;
+				}
+			}
+			RenderHelper.disableStandardItemLighting();
 			GlStateManager.popMatrix();
+
+			if(!hovered.isEmpty()) {
+				MinimapIntegrationHelper.drawPTEHoverText(hovered, scaledMouseX, scaledMouseY, this);
+			}
 
 			if(nowTime >= nextCacheRefreshTimeMillis) {
 				nextCacheRefreshTimeMillis = nowTime + 150;
@@ -127,7 +165,7 @@ public class XaeroWorldmapIntegration {
 		}
 
 		protected int screenToBlockPos(double screenPos, double camPos, double scale, int screenSize) {
-			return (int) (camPos + (screenPos - screenSize/2.0)/scale);
+			return (int) ((camPos + (screenPos - screenSize/2.0)/scale)-1.0d);
 		}
 
 		protected void clearClaimedChunksCache() {

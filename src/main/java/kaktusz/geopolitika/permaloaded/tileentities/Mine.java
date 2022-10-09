@@ -1,6 +1,5 @@
-package kaktusz.geopolitika.permaloaded;
+package kaktusz.geopolitika.permaloaded.tileentities;
 
-import kaktusz.geopolitika.Geopolitika;
 import kaktusz.geopolitika.blocks.BlockMine;
 import kaktusz.geopolitika.util.MathsUtils;
 import kaktusz.geopolitika.util.PermissionUtils;
@@ -9,6 +8,8 @@ import net.minecraft.block.BlockStone;
 import net.minecraft.block.BlockStoneSlab;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Blocks;
+import net.minecraft.init.Items;
+import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
@@ -17,7 +18,7 @@ import org.apache.commons.lang3.RandomUtils;
 
 import java.util.Random;
 
-public class Mine extends ExclusiveZoneTE {
+public class Mine extends ExclusiveZoneTE implements DisplayablePTE {
 	public static final int ID = 1001;
 	public static final int CHUNK_RADIUS = 3;
 	private static final boolean SMOOTH_CORNERS = false;
@@ -149,5 +150,17 @@ public class Mine extends ExclusiveZoneTE {
 				break;
 		}
 		return current;
+	}
+
+	@Override
+	public PTEDisplay getDisplay() {
+		PTEDisplay disp = new PTEDisplay(new ItemStack(Items.IRON_PICKAXE));
+		disp.hoverText = "Miiine...\nMiiiiiiineee.....";
+		return disp;
+	}
+
+	@Override
+	public PermaloadedTileEntity getTileEntity() {
+		return null;
 	}
 }

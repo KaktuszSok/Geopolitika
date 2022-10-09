@@ -1,6 +1,6 @@
 package kaktusz.geopolitika.blocks;
 
-import kaktusz.geopolitika.permaloaded.ExclusiveZoneTE;
+import kaktusz.geopolitika.permaloaded.tileentities.ExclusiveZoneTE;
 import net.minecraft.block.material.Material;
 import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.util.math.BlockPos;

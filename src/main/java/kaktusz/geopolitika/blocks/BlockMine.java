@@ -1,8 +1,6 @@
 package kaktusz.geopolitika.blocks;
 
-import kaktusz.geopolitika.permaloaded.Farm;
-import kaktusz.geopolitika.permaloaded.Mine;
-import kaktusz.geopolitika.permaloaded.PermaloadedSavedData;
+import kaktusz.geopolitika.permaloaded.tileentities.Mine;
 import mcp.MethodsReturnNonnullByDefault;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.state.IBlockState;
@@ -11,7 +9,6 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.world.World;
 

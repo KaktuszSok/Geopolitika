@@ -1,13 +1,15 @@
-package kaktusz.geopolitika.permaloaded;
+package kaktusz.geopolitika.permaloaded.tileentities;
 
 import kaktusz.geopolitika.blocks.BlockFarm;
+import kaktusz.geopolitika.util.ParticleUtils;
 import kaktusz.geopolitika.util.PermissionUtils;
 import kaktusz.geopolitika.util.PrecalcSpiral;
 import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
-import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.init.Blocks;
+import net.minecraft.init.Items;
 import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.EnumParticleTypes;
@@ -17,7 +19,7 @@ import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
 import net.minecraftforge.common.IPlantable;
 
-public class Farm extends ExclusiveZoneTE {
+public class Farm extends ExclusiveZoneTE implements LabourConsumer, DisplayablePTE {
 	public static final int ID = 1000;
 	public static final int CHUNK_RADIUS = 1;
 	private static final int BORDER_WIDTH = 1;
@@ -25,8 +27,11 @@ public class Farm extends ExclusiveZoneTE {
 	private static final int REACH_DOWN = 2;
 
 	private final PrecalcSpiral spiral;
+	private PrecalcSpiral labourSpiral;
+	private double labourReceivedLastTick = 0;
 	private int spiralIdx = 0;
 	private IPlantable plantable = null;
+	private int tickCooldown = 0;
 
 	public Farm(BlockPos position) {
 		super(position);
@@ -94,12 +99,35 @@ public class Farm extends ExclusiveZoneTE {
 
 	@Override
 	public void onTick() {
-		if(plantable == null)
+		labourReceivedLastTick = 0;
+		if (plantable == null)
 			return;
 
-		World world = getWorld();
-		if(world.getWorldTime() % 20 != 0)
+		labourReceivedLastTick = consumeLabour(3.0D, 1);
+		if (labourReceivedLastTick < 3.0D) { //insufficient labour
+			if(getWorld().isBlockLoaded(getPosition())) {
+				ParticleUtils.spawnParticleForAll(
+						(WorldServer) getWorld(),
+						EnumParticleTypes.SMOKE_LARGE,
+						false,
+						getPosition().getX()+0.5D,
+						getPosition().getY()+1,
+						getPosition().getZ()+0.5D,
+						1,
+						0,
+						0,
+						0,
+						0.05d
+				);
+			}
 			return;
+		}
+
+		if(tickCooldown != 0) {
+			tickCooldown--;
+			return;
+		}
+		tickCooldown = 20;
 
 		long startTime = System.nanoTime();
 		tillChunk(spiral.positions[spiralIdx]);
@@ -179,5 +207,45 @@ public class Farm extends ExclusiveZoneTE {
 				}
 			}
 		}
+	}
+
+	@Override
+	public int getLabourTier() {
+		return 1;
+	}
+
+	@Override
+	public int getSearchRadius() {
+		return 3 + CHUNK_RADIUS;
+	}
+
+	@Override
+	public PrecalcSpiral getCachedSpiral() {
+		return labourSpiral;
+	}
+
+	@Override
+	public PrecalcSpiral setCachedSpiral(PrecalcSpiral spiral) {
+		return labourSpiral = spiral;
+	}
+
+	@Override
+	public PermaloadedTileEntity getTileEntity() {
+		return this;
+	}
+
+	@Override
+	public PTEDisplay getDisplay() {
+		PTEDisplay disp = new PTEDisplay(new ItemStack(Items.WHEAT));
+		disp.hoverText = "Farm\n - Labour consumed: " + labourReceivedLastTick + (plantable == null ? "/0.0" : "/3.0");
+		if(plantable == null) {
+			disp.tint = 0x55000000;
+			disp.zOrder = 1;
+		}
+		else if(labourReceivedLastTick < 3.0D) {
+			disp.tint = 0x55FF0000;
+			disp.zOrder = 2;
+		}
+		return disp;
 	}
 }

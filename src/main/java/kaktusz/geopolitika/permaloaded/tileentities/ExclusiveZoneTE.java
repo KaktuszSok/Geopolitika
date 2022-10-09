@@ -1,5 +1,6 @@
-package kaktusz.geopolitika.permaloaded;
+package kaktusz.geopolitika.permaloaded.tileentities;
 
+import kaktusz.geopolitika.permaloaded.PermaloadedSavedData;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
@@ -42,8 +43,8 @@ public abstract class ExclusiveZoneTE extends PermaloadedTileEntity {
 
 	public boolean canPlaceHere(World world) {
 		ChunkPos centre = new ChunkPos(getPosition());
-		Collection<ExclusiveZoneMarker> markers = PermaloadedSavedData.get(world).findTileEntitiesOfType(ExclusiveZoneMarker.class, centre, getRadius());
-		return markers.isEmpty();
+		return !PermaloadedSavedData.get(world)
+				.hasAnyTileEntitiesOfType(ExclusiveZoneMarker.class, centre, getRadius());
 	}
 
 	protected void claimRadius() {
@@ -52,7 +53,7 @@ public abstract class ExclusiveZoneTE extends PermaloadedTileEntity {
 		for (int x = -radius; x <= radius; x++) {
 			for (int z = -radius; z <= radius; z++) {
 				ChunkPos curr = new ChunkPos(centre.x + x, centre.z + z);
-				ExclusiveZoneMarker marker = new ExclusiveZoneMarker(curr.getBlock(0,999,0));
+				ExclusiveZoneMarker marker = new ExclusiveZoneMarker(curr);
 				getSave().addTileEntity(marker);
 			}
 		}
@@ -60,7 +61,8 @@ public abstract class ExclusiveZoneTE extends PermaloadedTileEntity {
 
 	protected void unclaimRadius() {
 		ChunkPos centre = new ChunkPos(getPosition());
-		Collection<ExclusiveZoneMarker> markers = getSave().findTileEntitiesOfType(ExclusiveZoneMarker.class, centre, getRadius());
+		Collection<ExclusiveZoneMarker> markers = getSave()
+				.findTileEntitiesOfType(ExclusiveZoneMarker.class, centre, getRadius());
 		for (ExclusiveZoneMarker marker : markers) {
 			getSave().removeTileEntity(marker);
 		}

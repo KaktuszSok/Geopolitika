@@ -139,7 +139,7 @@ public class StatesManager {
 	/**
 	 * Checks if the given control point position is closer to the chunk than its current control point.
 	 * Note: Does not regard the states which control points belong to.
-	 * If states are different, the chunk shouldn't be claimed by the new control point.
+	 * If states are different, the chunk shouldn't be claimed by the new control point in the first place.
 	 */
 	public static boolean canControlPointClaimChunk(int cx, int cz, BlockPos controlPointPos, World world) {
 		return ChunksSavedData.get(world).canControlPointClaimChunk(new ChunkPos(cx, cz), controlPointPos);
