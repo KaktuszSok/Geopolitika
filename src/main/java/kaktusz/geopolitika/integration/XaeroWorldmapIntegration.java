@@ -38,6 +38,7 @@ import xaero.map.region.MapTileChunk;
 import xaero.minimap.XaeroMinimap;
 
 import java.util.*;
+import java.util.stream.Stream;
 
 @Mod.EventBusSubscriber({Side.CLIENT})
 @SideOnly(Side.CLIENT)
@@ -82,6 +83,10 @@ public class XaeroWorldmapIntegration {
 		public void drawScreen(int scaledMouseX, int scaledMouseY, float partialTicks) {
 			super.drawScreen(scaledMouseX, scaledMouseY, partialTicks);
 
+			if(GuiScreen.isAltKeyDown()) { //don't draw Geopolitica overlays when holding alt
+				return;
+			}
+
 			long nowTime = System.currentTimeMillis();
 			double scale = getFinalScale();
 			double cameraX = 0, cameraZ = 0;
@@ -94,7 +99,7 @@ public class XaeroWorldmapIntegration {
 			GlStateManager.pushMatrix();
 			GlStateManager.translate(width/2.0 - cameraX*scale, (double) height/mc.displayHeight/2 + height/2.0 - cameraZ*scale, 0);
 			GlStateManager.scale(scale, scale, 1);
-			//get coordinates of top-left and bottom-right blocks visible on the map
+			//1. get coordinates of top-left and bottom-right blocks visible on the map
 			int left = screenToBlockPos(0, cameraX, scale, width);
 			int top = screenToBlockPos(0, cameraZ, scale, height);
 			int right = screenToBlockPos(width, cameraX, scale, width);
@@ -109,19 +114,26 @@ public class XaeroWorldmapIntegration {
 					}
 				}
 			}
+			//2. draw chunk claims
 			claimedChunksCache.forEach((cpos, owner) -> {
 				MinimapIntegrationHelper.drawChunkClaim(cpos.x << 4, cpos.z << 4, owner, cpos.x, cpos.z, mapProcessor.getWorld());
 			});
 
-			//draw PermaloadedTileEntities
+			//3. draw PermaloadedTileEntities
 			RenderHelper.enableGUIStandardItemLighting();
+
+			boolean drawRegionTooltip = GuiScreen.isShiftKeyDown() || getUserScale() < 1.0d; //if shift is held or we are zoomed out, we want to draw region info instead of hovered PTEs tooltip.
 			List<PTEDisplay> hovered = new ArrayList<>();
 			BlockPos closestHoveredBlockPos = null;
 			double closestHoveredDist = Double.POSITIVE_INFINITY;
+
 			int mouseBlockPosX = screenToBlockPos(scaledMouseX, cameraX, scale, width);
 			int mouseBlockPosZ = screenToBlockPos(scaledMouseY, cameraZ, scale, height);
-			Iterator<Map.Entry<BlockPos, PTEDisplay>> displaysSorted = MinimapIntegrationHelper.getPTEDisplaysMap().entrySet().stream()
-					.sorted(Comparator.comparingInt(entry -> entry.getValue().zOrder)).iterator();
+
+			Iterator<Map.Entry<BlockPos, PTEDisplay>> displaysSorted = MinimapIntegrationHelper.getPTEDisplaysStreamIncludingCached()
+					.sorted(Comparator.comparingInt(
+							entry -> entry.getValue().zOrder //sort by zOrder
+					)).iterator();
 			while (displaysSorted.hasNext())
 			{
 				Map.Entry<BlockPos, PTEDisplay> kvp = displaysSorted.next();
@@ -129,6 +141,10 @@ public class XaeroWorldmapIntegration {
 				PTEDisplay disp = kvp.getValue();
 
 				MinimapIntegrationHelper.drawPTEDisplay(disp, bp.getX(), bp.getZ(), getUserScale());
+				if(drawRegionTooltip)
+					continue; //ignore PTE tooltips if we are drawing the region tooltip instead
+
+				//finding closest tooltips:
 				double dx = Math.abs(mouseBlockPosX - bp.getX());
 				double dz = Math.abs(mouseBlockPosZ - bp.getZ());
 				double maxHoverDist = 16d/getUserScale();
@@ -146,7 +162,20 @@ public class XaeroWorldmapIntegration {
 			RenderHelper.disableStandardItemLighting();
 			GlStateManager.popMatrix();
 
-			if(!hovered.isEmpty()) {
+			//3.5 draw hovered tooltip
+			if(drawRegionTooltip) { //draw hovered region tooltip
+				ChunkPos hoveredChunk = new ChunkPos(mouseBlockPosX >> 4, mouseBlockPosZ >> 4);
+				CommonStateInfo hoveredOwner = claimedChunksCache.getOrDefault(hoveredChunk, CommonStateInfo.NONE);
+				MinimapIntegrationHelper.drawRegionTooltip(
+						mouseBlockPosX,
+						mouseBlockPosZ,
+						hoveredOwner,
+						mapProcessor.getWorld(),
+						scaledMouseX,
+						scaledMouseY,
+						this
+				);
+			} else if(!hovered.isEmpty()) { //draw hovered PTEs tooltip
 				MinimapIntegrationHelper.drawPTEHoverText(hovered, scaledMouseX, scaledMouseY, this);
 			}
 

@@ -85,7 +85,7 @@ public class Mine extends ExclusiveZoneTE implements DisplayablePTE {
 	}
 
 	private void mineBlockBeneath(BlockPos topBlock) {
-		if(!getWorld().isBlockLoaded(topBlock))
+		if(!getWorld().isBlockLoaded(topBlock, false))
 			return;
 
 		BlockPos chosenBlock = blockcastDown(topBlock);

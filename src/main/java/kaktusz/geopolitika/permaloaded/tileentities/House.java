@@ -46,8 +46,14 @@ public class House extends BuildingTE<BuildingHouse> implements LabourSupplier, 
 	@Override
 	public void onTick() {
 		super.onTick();
-		labourProvidedLastTick = getLabourPerTick() - availableLabour;
-		setAvailableLabour(getLabourPerTick());
+		if(supplied)
+		{
+			labourProvidedLastTick = getIdealLabourPerTick() - availableLabour;
+			setAvailableLabour(getIdealLabourPerTick());
+		}
+		else {
+			labourProvidedLastTick = 0;
+		}
 	}
 
 	@Override
@@ -61,7 +67,7 @@ public class House extends BuildingTE<BuildingHouse> implements LabourSupplier, 
 	}
 
 	@Override
-	public double getLabourPerTick() {
+	public double getIdealLabourPerTick() {
 		return residents*1.0D;
 	}
 
@@ -78,16 +84,29 @@ public class House extends BuildingTE<BuildingHouse> implements LabourSupplier, 
 	@Override
 	public PTEDisplay getDisplay() {
 		PTEDisplay disp = new PTEDisplay(new ItemStack(Items.BED));
-		disp.hoverText = "House in de haus\n - Labour provided: " + labourProvidedLastTick + "/" + getLabourPerTick();
-		if(getLabourPerTick() == 0) {
+		disp.hoverText = "House";
+		if(getIdealLabourPerTick() == 0) {
+			if(!wasValidLastRecheck()) {
+				disp.hoverText += " (INVALID)";
+			}
+			else {
+				disp.hoverText += " (CRAMPED)";
+			}
+		} else if(!supplied) {
+			disp.hoverText += " (OUT OF SUPPLIES)";
+		}
+		disp.hoverText += "\n - Labour provided: " + labourProvidedLastTick + "/" + getIdealLabourPerTick();
+		disp.labourContribution = (float) labourProvidedLastTick;
+		disp.idealLabourContribution = (float) getIdealLabourPerTick();
+		if(getIdealLabourPerTick() == 0 || !supplied) {
 			disp.tint = 0x55FF0000;
 			disp.zOrder = 2;
 		}
-		else if(labourProvidedLastTick >= getLabourPerTick()) {
+		else if(labourProvidedLastTick >= getIdealLabourPerTick()) {
 			disp.tint = 0x55000000;
 			disp.zOrder = 0;
 		}
-		else {
+		else { //free labour available
 			disp.zOrder = 1;
 		}
 		return disp;

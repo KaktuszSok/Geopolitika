@@ -23,10 +23,13 @@ public class CmdDebugRoom extends Subcommand {
 			throw new WrongUsageException("");
 		CommandAssertions.senderMustBeEntity(sender);
 
-		RoomInfo room = RoomInfo.calculateRoom(sender.getEntityWorld(), sender.getPosition(), new HashSet<>(), new HashSet<>());
-		if(room == null)
+		RoomInfo.CalculationResult<RoomInfo> result = RoomInfo.calculateRoom(
+				sender.getEntityWorld(), sender.getPosition(),
+				new HashSet<>(), new HashSet<>(), RoomInfo::new,
+				false);
+		if(result.roomInfo == null)
 			sender.sendMessage(new TextComponentString("null"));
 		else
-			sender.sendMessage(new TextComponentString(room.toString()));
+			sender.sendMessage(new TextComponentString(result.roomInfo.toString()));
 	}
 }

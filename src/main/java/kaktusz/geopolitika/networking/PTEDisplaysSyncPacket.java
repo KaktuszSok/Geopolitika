@@ -17,7 +17,7 @@ import java.util.Map;
 
 public class PTEDisplaysSyncPacket implements IMessage {
 
-	private static final int VIEW_DISTANCE = 16;
+	public static final int VIEW_DISTANCE = 16;
 
 	private final Map<BlockPos, PTEDisplay> data = new HashMap<>();
 
@@ -61,12 +61,7 @@ public class PTEDisplaysSyncPacket implements IMessage {
 
 		@Override
 		public IMessage onMessage(PTEDisplaysSyncPacket message, MessageContext ctx) {
-			//copy over data from packet to minimap helper so the client can render it
-			Map<BlockPos, PTEDisplay> dataDestination = MinimapIntegrationHelper.getPTEDisplaysMap();
-			dataDestination.clear();
-			for (Map.Entry<BlockPos, PTEDisplay> kvp : message.data.entrySet()) {
-				dataDestination.put(kvp.getKey(), kvp.getValue());
-			}
+			MinimapIntegrationHelper.updatePTEDisplays(message.data);
 			return null;
 		}
 	}

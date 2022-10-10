@@ -1,11 +1,13 @@
 package kaktusz.geopolitika.handlers;
 
 import kaktusz.geopolitika.Geopolitika;
+import kaktusz.geopolitika.integration.MinimapIntegrationHelper;
 import kaktusz.geopolitika.networking.ChunksSavedDataSyncPacket;
 import kaktusz.geopolitika.networking.PTEDisplaysSyncPacket;
 import kaktusz.geopolitika.states.ChunksSavedData;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.world.World;
+import net.minecraftforge.event.world.WorldEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
@@ -20,7 +22,7 @@ import java.util.List;
 import java.util.Set;
 
 @Mod.EventBusSubscriber
-public class ModPacketHandler {
+public class ModSyncHandler {
 	public static final SimpleNetworkWrapper INSTANCE = NetworkRegistry.INSTANCE.newSimpleChannel(Geopolitika.MODID);
 	private static int highestPacketId = 0;
 
@@ -103,5 +105,12 @@ public class ModPacketHandler {
 
 		PTEDisplaysSyncPacket packet = new PTEDisplaysSyncPacket(e.player.getPosition(), e.player.world);
 		INSTANCE.sendTo(packet, (EntityPlayerMP) e.player);
+	}
+
+	@SubscribeEvent
+	public static void onWorldLoad(WorldEvent.Load e) {
+		if(e.getWorld().isRemote) { //client-side
+			MinimapIntegrationHelper.clearCachedPTEDisplays();
+		}
 	}
 }

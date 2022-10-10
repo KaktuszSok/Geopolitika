@@ -12,6 +12,7 @@ import kaktusz.geopolitika.states.StatesSavedData;
 import kaktusz.geopolitika.util.MessageUtils;
 import kaktusz.geopolitika.util.SoundUtils;
 import mcp.MethodsReturnNonnullByDefault;
+import net.minecraft.block.state.IBlockState;
 import net.minecraft.command.CommandException;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -608,13 +609,18 @@ public class TileEntityControlPoint extends TileEntity implements ITickable {
 	public NBTTagCompound getUpdateTag() {
 		NBTTagCompound tag = super.getUpdateTag();
 		tag.setShort(OWNER_NBT_TAG, ownerUid);
+		if(regionName != null && !regionName.isEmpty()) {
+			tag.setString(REGION_NAME_NBT_TAG, regionName);
+		}
 		return tag;
 	}
 
 	@Override
 	public void handleUpdateTag(NBTTagCompound tag) {
-		super.handleUpdateTag(tag);
 		setOwner(tag.getShort(OWNER_NBT_TAG));
+		regionName = tag.getString(REGION_NAME_NBT_TAG);
+		if(regionName.isEmpty())
+			regionName = null;
 	}
 
 	@Nullable
@@ -634,7 +640,12 @@ public class TileEntityControlPoint extends TileEntity implements ITickable {
 			return false; //too long or empty
 
 		this.regionName = regionName;
+
 		markDirty();
+		if(!world.isRemote) {
+			IBlockState state = world.getBlockState(getPos());
+			world.notifyBlockUpdate(getPos(), state, state, 3);
+		}
 		return true;
 	}
 

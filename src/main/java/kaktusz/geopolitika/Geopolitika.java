@@ -1,6 +1,6 @@
 package kaktusz.geopolitika;
 
-import kaktusz.geopolitika.handlers.ModPacketHandler;
+import kaktusz.geopolitika.handlers.ModSyncHandler;
 import kaktusz.geopolitika.handlers.RegistryHandler;
 import kaktusz.geopolitika.init.ModBlocks;
 import kaktusz.geopolitika.init.ModCommands;
@@ -50,7 +50,7 @@ public class Geopolitika
     public void init(FMLInitializationEvent event)
     {
         RegistryHandler.init(event);
-        ModPacketHandler.init(event);
+        ModSyncHandler.init(event);
     }
 
     @EventHandler

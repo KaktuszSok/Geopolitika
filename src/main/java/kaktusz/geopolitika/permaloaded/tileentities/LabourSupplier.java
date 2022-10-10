@@ -5,7 +5,10 @@ public interface LabourSupplier extends PTEInterface {
 	double getAvailableLabour();
 	void setAvailableLabour(double labour);
 
-	double getLabourPerTick();
+	/**
+	 * Labour per tick this supplier generates if all its needs are met.
+	 */
+	double getIdealLabourPerTick();
 	int getLabourTier();
 
 	/**

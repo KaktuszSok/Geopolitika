@@ -1,6 +1,9 @@
 package kaktusz.geopolitika.buildings;
 
 import kaktusz.geopolitika.Geopolitika;
+import kaktusz.geopolitika.permaloaded.PermaloadedSavedData;
+import kaktusz.geopolitika.permaloaded.tileentities.BuildingTE;
+import kaktusz.geopolitika.permaloaded.tileentities.PermaloadedTileEntity;
 import kaktusz.geopolitika.util.BetterToString;
 import kaktusz.geopolitika.util.MutableBlockPosition;
 import kaktusz.geopolitika.util.RotationUtils;
@@ -20,6 +23,16 @@ import java.util.function.Supplier;
 @ParametersAreNonnullByDefault
 @MethodsReturnNonnullByDefault
 public class RoomInfo implements BetterToString {
+
+	public static class CalculationResult<T extends RoomInfo> {
+		public final boolean foundOtherBuilding;
+		public final T roomInfo;
+
+		public CalculationResult(boolean foundOtherBuilding, @Nullable T roomInfo) {
+			this.foundOtherBuilding = foundOtherBuilding;
+			this.roomInfo = roomInfo;
+		}
+	}
 
 	private static final boolean DEBUG_MODE = true;
 	private static final boolean DEEP_DEBUG = false;
@@ -46,26 +59,22 @@ public class RoomInfo implements BetterToString {
 		return encounteredDoors;
 	}
 
-	@Nullable
-	public static RoomInfo calculateRoom(World world, BlockPos startPos, Set<BlockPos> accessibleBlocksCache, Set<ChunkPos> chunksCache) {
-		return calculateRoom(world, startPos, accessibleBlocksCache, chunksCache, RoomInfo::new);
-	}
-
-	@Nullable
-	public static <T extends RoomInfo> T calculateRoom(World world, BlockPos startPos, Set<BlockPos> accessibleBlocksCache, Set<ChunkPos> chunksCache, Supplier<T> roomSupplier) {
+	@Nonnull
+	public static <T extends RoomInfo> CalculationResult<T> calculateRoom(World world, BlockPos startPos, Set<BlockPos> accessibleBlocksCache, Set<ChunkPos> chunksCache, Supplier<T> roomSupplier, boolean failOnEncounteredExistingBuilding) {
 
 		//0. ensure we are starting on a floor
 		BlockPos floorSearchStartBlock = startPos.down();
 		if(!isBlockFloor(world, floorSearchStartBlock)) {
 			debugLog("No floor at " + floorSearchStartBlock);
-			return null; //failed to find floor
+			return new CalculationResult<T>(false, null); //failed to find floor
 		}
 
 		//1. check if we are in an enclosed area
 		Set<BlockPos> checkedBlocks = new HashSet<>();
-		Stack<BlockPos> blocksToCheck = new Stack<>();
+		Stack<BlockPos> blocksToCheck = new Stack<>(); //TODO make this store unique elements only
 		blocksToCheck.push(startPos);
 
+		PermaloadedSavedData permaWorld = PermaloadedSavedData.get(world);
 		MutableBlockPosition minimumCorner = new MutableBlockPosition(startPos);
 		MutableBlockPosition maximumCorner = new MutableBlockPosition(startPos);
 		int volume = 0;
@@ -76,33 +85,40 @@ public class RoomInfo implements BetterToString {
 			volume++;
 			if(volume > MAX_VOLUME) { //room too big
 				debugLog("Volume exceeded " + MAX_VOLUME + " at " + currBlock);
-				return null;
+				return new CalculationResult<T>(false, null);
 			}
 			//bounds:
 			minimumCorner.x = Math.min(minimumCorner.x, currBlock.getX());
 			maximumCorner.x = Math.max(maximumCorner.x, currBlock.getX());
 			if(maximumCorner.x - minimumCorner.x > MAX_SIZE_HORIZONTAL) {//room too big
 				debugLog("Width exceeded " + MAX_SIZE_HORIZONTAL + " at " + currBlock);
-				return null;
+				return new CalculationResult<T>(false, null);
 			}
 			minimumCorner.y = Math.min(minimumCorner.y, currBlock.getY());
 			maximumCorner.y = Math.max(maximumCorner.y, currBlock.getY());
 			if(maximumCorner.y - minimumCorner.y > MAX_SIZE_VERTICAL) {//room too big
 				debugLog("Height exceeded " + MAX_SIZE_VERTICAL + " at " + currBlock);
-				return null;
+				return new CalculationResult<T>(false, null);
 			}
 			minimumCorner.z = Math.min(minimumCorner.z, currBlock.getZ());
 			maximumCorner.z = Math.max(maximumCorner.z, currBlock.getZ());
 			if(maximumCorner.z - minimumCorner.z > MAX_SIZE_HORIZONTAL) {//room too big
 				debugLog("Width exceeded " + MAX_SIZE_HORIZONTAL + " at " + currBlock);
-				return null;
+				return new CalculationResult<T>(false, null);
 			}
+
+			//fail if we find another building. In order to avoid failing when finding self, we ignore this when we are on our start block.
+			else if(failOnEncounteredExistingBuilding && !floorSearchStartBlock.equals(currBlock) && isBlockOtherBuilding(permaWorld, currBlock)) {
+				debugLog("Encountered existing building at " + currBlock + " (floor search start = " + floorSearchStartBlock + ")");
+				return new CalculationResult<T>(true, null); //buildings can not share rooms - prioritise existing building.
+			}
+
+			//mark block as checked
+			checkedBlocks.add(currBlock);
 
 			if(isBlockSolid(world, currBlock))
 				continue; //reached a wall - don't add its neighbours
 
-			//mark block as checked
-			checkedBlocks.add(currBlock);
 			//push unchecked neighbours to stack
 			pushManyToStack(blocksToCheck, checkedBlocks, currBlock.east(), currBlock.west(), currBlock.north(), currBlock.south(), currBlock.down(), currBlock.up());
 		}
@@ -151,10 +167,10 @@ public class RoomInfo implements BetterToString {
 		//don't count rooms with no space
 		if(info.floorArea == 0) {
 			debugLog("Floor area of 0 for room with " + checkedBlocks.size() + " checked blocks and " + accessibleBlocksCache.size() + " accessible blocks");
-			return null;
+			return new CalculationResult<T>(false, null);
 		}
 
-		return info;
+		return new CalculationResult<T>(false, info);
 	}
 
 	private static boolean processBlock(Set<BlockPos> accessibleBlocksCache, Stack<BlockPos> blocksToCheck, RoomInfo info, BlockPos currBlock, World world) {
@@ -227,6 +243,14 @@ public class RoomInfo implements BetterToString {
 		}
 
 		return hasHeadroom;
+	}
+
+	private static boolean isBlockOtherBuilding(PermaloadedSavedData permaWorld, BlockPos pos) {
+		PermaloadedTileEntity pte = permaWorld.getTileEntityAt(pos);
+		if(pte instanceof BuildingTE<?>) {
+			return ((BuildingTE<?>)pte).wasValidLastRecheck();
+		}
+		return false;
 	}
 
 	/**

@@ -24,20 +24,29 @@ public abstract class BuildingInfo<T extends RoomInfo> implements BetterToString
 
 		roomCandidates.add(startPos);
 		while (!roomCandidates.isEmpty()) {
-			if(chunksCache.size() > MAX_CHUNKS_OCCUPIED) {
+			if(chunksCache.size() > MAX_CHUNKS_OCCUPIED) { //explored too many chunks - whole building is invalid.
 				rooms.clear();
 				return;
 			}
 
 			BlockPos roomStartPoint = roomCandidates.poll();
-			T foundRoom = RoomInfo.calculateRoom(world, roomStartPoint, accessibleBlocksCache, chunksCache, getRoomSupplier());
+			RoomInfo.CalculationResult<T> foundRoomResult = RoomInfo.calculateRoom(
+					world, roomStartPoint,
+					accessibleBlocksCache, chunksCache, getRoomSupplier(),
+					true);
+			if(foundRoomResult.foundOtherBuilding) {
+				//found another building while exploring room - this whole building is invalid.
+				rooms.clear();
+				return;
+			}
+
 			accessibleBlocksCache.add(roomStartPoint);
-			if(foundRoom == null) {
+			if(foundRoomResult.roomInfo == null) {
 				continue; //not a room
 			}
 
-			rooms.add(foundRoom);
-			roomCandidates.addAll(foundRoom.getPossibleConnectedRooms());
+			rooms.add(foundRoomResult.roomInfo);
+			roomCandidates.addAll(foundRoomResult.roomInfo.getPossibleConnectedRooms());
 		}
 	}
 

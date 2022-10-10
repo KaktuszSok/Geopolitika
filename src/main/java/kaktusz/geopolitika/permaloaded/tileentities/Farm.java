@@ -103,9 +103,9 @@ public class Farm extends ExclusiveZoneTE implements LabourConsumer, Displayable
 		if (plantable == null)
 			return;
 
-		labourReceivedLastTick = consumeLabour(3.0D, 1);
-		if (labourReceivedLastTick < 3.0D) { //insufficient labour
-			if(getWorld().isBlockLoaded(getPosition())) {
+		labourReceivedLastTick = consumeLabour(getLabourPerTick(), 1);
+		if (labourReceivedLastTick < getLabourPerTick()) { //insufficient labour
+			if(getWorld().isBlockLoaded(getPosition(), false)) {
 				ParticleUtils.spawnParticleForAll(
 						(WorldServer) getWorld(),
 						EnumParticleTypes.SMOKE_LARGE,
@@ -137,7 +137,7 @@ public class Farm extends ExclusiveZoneTE implements LabourConsumer, Displayable
 
 	private void tillChunk(ChunkPos chunk) {
 		World world = getWorld();
-		if(!world.isBlockLoaded(chunk.getBlock(0,0,0))) {
+		if(!world.isBlockLoaded(chunk.getBlock(0,0,0), false)) {
 			return; //chunk not loaded
 		}
 
@@ -209,6 +209,10 @@ public class Farm extends ExclusiveZoneTE implements LabourConsumer, Displayable
 		}
 	}
 
+	public double getLabourPerTick() {
+		return 3.0D;
+	}
+
 	@Override
 	public int getLabourTier() {
 		return 1;
@@ -237,12 +241,15 @@ public class Farm extends ExclusiveZoneTE implements LabourConsumer, Displayable
 	@Override
 	public PTEDisplay getDisplay() {
 		PTEDisplay disp = new PTEDisplay(new ItemStack(Items.WHEAT));
-		disp.hoverText = "Farm\n - Labour consumed: " + labourReceivedLastTick + (plantable == null ? "/0.0" : "/3.0");
+		disp.hoverText = "Farm\n - Labour consumed: " + labourReceivedLastTick + (plantable == null ? "/0.0" : "/" + getLabourPerTick());
+		boolean enoughLabour = labourReceivedLastTick >= getLabourPerTick();
+		disp.labourContribution = enoughLabour ? (float) -labourReceivedLastTick : 0;
+		disp.idealLabourContribution = (float) -getLabourPerTick();
 		if(plantable == null) {
 			disp.tint = 0x55000000;
 			disp.zOrder = 1;
 		}
-		else if(labourReceivedLastTick < 3.0D) {
+		else if(labourReceivedLastTick < getLabourPerTick()) {
 			disp.tint = 0x55FF0000;
 			disp.zOrder = 2;
 		}

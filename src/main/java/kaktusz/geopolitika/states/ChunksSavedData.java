@@ -3,7 +3,7 @@ package kaktusz.geopolitika.states;
 import com.feed_the_beast.ftblib.lib.data.ForgeTeam;
 import io.netty.buffer.ByteBuf;
 import kaktusz.geopolitika.Geopolitika;
-import kaktusz.geopolitika.handlers.ModPacketHandler;
+import kaktusz.geopolitika.handlers.ModSyncHandler;
 import kaktusz.geopolitika.tileentities.TileEntityControlPoint;
 import mcp.MethodsReturnNonnullByDefault;
 import net.minecraft.nbt.NBTTagCompound;
@@ -149,7 +149,7 @@ public class ChunksSavedData extends WorldSavedData {
 		int newDeltaCz = chunkPos.z - newCz;
 		int newDistSq = newDeltaCx*newDeltaCx + newDeltaCz*newDeltaCz;
 		boolean closer = newDistSq < currentDistSq;
-		if(!closer && world.isBlockLoaded(currentClaim)) {
+		if(!closer && world.isBlockLoaded(currentClaim, false)) {
 			//verify integrity of our data
 			TileEntity te = world.getTileEntity(currentClaim);
 			if(!(te instanceof TileEntityControlPoint)) {
@@ -163,7 +163,7 @@ public class ChunksSavedData extends WorldSavedData {
 	@Override
 	public void markDirty() {
 		super.markDirty();
-		ModPacketHandler.onChunksDataMarkedDirty(this);
+		ModSyncHandler.onChunksDataMarkedDirty(this);
 	}
 
 	@Override

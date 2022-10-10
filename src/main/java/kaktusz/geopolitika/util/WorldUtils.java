@@ -196,7 +196,7 @@ public class WorldUtils {
 	}
 
 	public static IBlockState getBlockStateDontLoad(World world, BlockPos pos) {
-		if(world.isBlockLoaded(pos))
+		if(world.isBlockLoaded(pos, false))
 			return world.getBlockState(pos);
 		return Blocks.AIR.getDefaultState();
 	}

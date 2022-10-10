@@ -23,6 +23,7 @@ public abstract class BuildingTE<T extends BuildingInfo<?>> extends PermaloadedT
 		}
 	}
 
+	private boolean validLastRecheck = false;
 	private int nextRecheckTimer = 0;
 
 	public BuildingTE(BlockPos position) {
@@ -37,12 +38,14 @@ public abstract class BuildingTE<T extends BuildingInfo<?>> extends PermaloadedT
 	protected abstract T createBuildingInfo(World world, BlockPos pos);
 
 	public BuildingStatus<T> recheckBuilding(boolean consumeSupplies) {
-		markDirty();
 
 		//phase 1 - structure
 		T buildingInfo = createBuildingInfo(getWorld(), getPosition().up());
-		if(!buildingInfo.isValid())
+		validLastRecheck = buildingInfo.isValid();
+		markDirty();
+		if(!buildingInfo.isValid()) {
 			return new BuildingStatus<>(buildingInfo, false);
+		}
 
 		//phase 2 - supplies
 		boolean supplied = true;
@@ -53,13 +56,17 @@ public abstract class BuildingTE<T extends BuildingInfo<?>> extends PermaloadedT
 		return new BuildingStatus<>(buildingInfo, supplied);
 	}
 
+	public boolean wasValidLastRecheck() {
+		return validLastRecheck;
+	}
+
 	@Override
 	public void onTick() {
 		if(nextRecheckTimer > 0) {
 			nextRecheckTimer--;
 		}
 		else {
-			if(getWorld().isBlockLoaded(getPosition())) {
+			if(getWorld().isBlockLoaded(getPosition(), false)) {
 				nextRecheckTimer = 20*60*20; //20 minutes
 				recheckBuilding(true);
 			}
@@ -72,12 +79,14 @@ public abstract class BuildingTE<T extends BuildingInfo<?>> extends PermaloadedT
 	@Override
 	public NBTTagCompound writeToNBT(NBTTagCompound compound) {
 		super.writeToNBT(compound);
+		compound.setBoolean("valid", validLastRecheck);
 		compound.setInteger("recheck", nextRecheckTimer);
 		return compound;
 	}
 
 	@Override
 	public void readFromNBT(NBTTagCompound nbt) {
+		validLastRecheck = nbt.getBoolean("valid");
 		nextRecheckTimer = nbt.getInteger("recheck");
 		super.readFromNBT(nbt);
 	}

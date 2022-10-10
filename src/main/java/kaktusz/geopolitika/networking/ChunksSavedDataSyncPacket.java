@@ -2,6 +2,8 @@ package kaktusz.geopolitika.networking;
 
 import com.feed_the_beast.ftblib.lib.data.ForgeTeam;
 import com.feed_the_beast.ftblib.lib.data.Universe;
+import com.feed_the_beast.ftblib.lib.io.DataIn;
+import com.feed_the_beast.ftblib.lib.io.DataOut;
 import io.netty.buffer.ByteBuf;
 import it.unimi.dsi.fastutil.shorts.Short2ObjectOpenHashMap;
 import kaktusz.geopolitika.Geopolitika;
@@ -10,6 +12,7 @@ import kaktusz.geopolitika.states.ClientStatesManager;
 import kaktusz.geopolitika.states.CommonStateInfo;
 import kaktusz.geopolitika.states.StatesManager;
 import net.minecraft.client.Minecraft;
+import net.minecraft.util.text.ITextComponent;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
@@ -36,12 +39,14 @@ public class ChunksSavedDataSyncPacket implements IMessage {
 	@Override
 	public void fromBytes(ByteBuf buf) {
 		data = new ChunksSavedData();
+		DataIn in = new DataIn(buf);
 		data.fromBytes(buf);
 		short statesCount = buf.readShort();
 		for (short i = 0; i < statesCount; i++) {
 			short id = buf.readShort();
+			ITextComponent name = in.readTextComponent();
 			short colourIdx = buf.readShort();
-			stateInfos.put(id, new CommonStateInfo(id, colourIdx));
+			stateInfos.put(id, new CommonStateInfo(id, name, colourIdx));
 		}
 		conflictStateId = buf.readShort();
 	}
@@ -49,10 +54,12 @@ public class ChunksSavedDataSyncPacket implements IMessage {
 	@Override
 	public void toBytes(ByteBuf buf) {
 		data.toBytes(buf);
+		DataOut out = new DataOut(buf);
 		buf.writeShort(stateInfos.size());
 		stateInfos.forEach(
 				(id, info) -> {
 					buf.writeShort(id);
+					out.writeTextComponent(info.name);
 					buf.writeShort(info.colour.ordinal());
 				}
 		);
