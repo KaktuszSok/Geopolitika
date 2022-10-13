@@ -3,8 +3,10 @@ package kaktusz.geopolitika.permaloaded.tileentities;
 import kaktusz.geopolitika.Geopolitika;
 import kaktusz.geopolitika.util.PrecalcSpiral;
 import mcp.MethodsReturnNonnullByDefault;
+import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Blocks;
+import net.minecraft.init.Items;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -23,7 +25,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 @ParametersAreNonnullByDefault
 public abstract class LabourMachine<T> extends PermaloadedTileEntity implements LabourConsumer, DisplayablePTE {
 
-	private static final Vec3d RAYTRACE_VECTOR = new Vec3d(0, -1, 0);
+	private static final Vec3d RAYTRACE_VECTOR = new Vec3d(0, 0, 0);
 	private PrecalcSpiral labourSpiral;
 	private int reverifyCooldown = 200;
 	private double labourReceivedLastTick = 0;
@@ -109,15 +111,15 @@ public abstract class LabourMachine<T> extends PermaloadedTileEntity implements 
 		ItemStack icon = null;
 		if(getWorld().isBlockLoaded(getPosition(), false)) {
 			IBlockState blockState = getWorld().getBlockState(getPosition());
+			//icon = blockState.getBlock().getItem(getWorld(), getPosition(), blockState);
 			icon = blockState.getBlock().getPickBlock(blockState,
 					new RayTraceResult(RAYTRACE_VECTOR, EnumFacing.UP, getPosition()),
 					getWorld(),
 					getPosition(),
 					FakePlayerFactory.getMinecraft((WorldServer) getWorld()));
-			Geopolitika.logger.info("icon: " + icon.getDisplayName() + " / " + icon.serializeNBT().toString());
 		}
 
-		PTEDisplay display = new PTEDisplay(icon != null ? icon : new ItemStack(Blocks.FURNACE));
+		PTEDisplay display = new PTEDisplay(icon != null && icon.getItem() != Items.AIR ? icon : new ItemStack(Blocks.IRON_BLOCK));
 		display.hoverText = machineName + "\n - Labour consumed: " + labourReceivedLastTick + "/" + getLabourPerTick();
 		display.labourContribution = (float) -labourReceivedLastTick;
 		display.idealLabourContribution = (float) -getLabourPerTick();
