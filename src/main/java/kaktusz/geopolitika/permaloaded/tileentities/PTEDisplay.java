@@ -1,14 +1,13 @@
 package kaktusz.geopolitika.permaloaded.tileentities;
 
+import com.google.common.collect.BiMap;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.item.ItemStack;
-import net.minecraftforge.fml.common.network.ByteBufUtils;
 
-import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 
-public class PTEDisplay {
+public class PTEDisplay implements Comparable<PTEDisplay> {
 
 	public ItemStack displayStack;
 	public byte zOrder = 0;
@@ -23,26 +22,34 @@ public class PTEDisplay {
 		this.displayStack = displayStack;
 	}
 
-	public PTEDisplay(ByteBuf buf) {
-		displayStack = ByteBufUtils.readItemStack(buf);
+	public PTEDisplay(ByteBuf buf, BiMap<String, Integer> stringsLUT, List<ItemStack> stacksLUT) {
+		int stackIdx = buf.readInt();
+		displayStack = stacksLUT.get(stackIdx);
 		zOrder = buf.readByte();
 		tint = buf.readInt();
 		labourContribution = buf.readFloat();
 		idealLabourContribution = buf.readFloat();
-		short textLength = buf.readShort();
-		hoverText = buf.readCharSequence(textLength, StandardCharsets.UTF_8).toString();
+		int hoverIdx = buf.readInt();
+		hoverText = stringsLUT.inverse().get(hoverIdx);
 	}
 
-	public void toBytes(ByteBuf buf) {
-		ByteBufUtils.writeItemStack(buf, displayStack);
+	public void toBytes(ByteBuf buf, BiMap<String, Integer> stringsLUT, List<ItemStack> stacksLUT) {
+		int stackIdx = -1;
+		for (int i = 0; i < stacksLUT.size(); i++) {
+			if(ItemStack.areItemStacksEqual(displayStack, stacksLUT.get(i))) {
+				stackIdx = i;
+				break;
+			}
+		}
+		buf.writeInt(stackIdx);
+
 		buf.writeByte(zOrder);
 		buf.writeInt(tint);
 		buf.writeFloat(labourContribution);
 		buf.writeFloat(idealLabourContribution);
-		if(hoverText.length() > Short.MAX_VALUE)
-			hoverText = hoverText.substring(0, Short.MAX_VALUE);
-		buf.writeShort(hoverText.length());
-		buf.writeCharSequence(hoverText, StandardCharsets.UTF_8);
+
+		int hoverIdx = stringsLUT.get(hoverText);
+		buf.writeInt(hoverIdx);
 	}
 
 	public List<String> getLines() {
@@ -59,5 +66,10 @@ public class PTEDisplay {
 
 	public boolean isCached() {
 		return cached;
+	}
+
+	@Override
+	public int compareTo(PTEDisplay o) {
+		return zOrder - o.zOrder;
 	}
 }

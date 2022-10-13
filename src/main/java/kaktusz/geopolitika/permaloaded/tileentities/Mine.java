@@ -160,7 +160,7 @@ public class Mine extends ExclusiveZoneTE implements DisplayablePTE {
 	}
 
 	@Override
-	public PermaloadedTileEntity getTileEntity() {
+	public PermaloadedTileEntity getPermaTileEntity() {
 		return null;
 	}
 }

@@ -4,6 +4,7 @@ import kaktusz.geopolitika.handlers.ModSyncHandler;
 import kaktusz.geopolitika.handlers.RegistryHandler;
 import kaktusz.geopolitika.init.ModBlocks;
 import kaktusz.geopolitika.init.ModCommands;
+import kaktusz.geopolitika.integration.GTCEuIntegration;
 import kaktusz.geopolitika.integration.XaeroIntegrationCommon;
 import kaktusz.geopolitika.proxy.CommonProxy;
 import kaktusz.geopolitika.states.StatesManager;
@@ -17,7 +18,7 @@ import net.minecraftforge.fml.relauncher.Side;
 import org.apache.logging.log4j.Logger;
 
 @Mod(modid = Geopolitika.MODID, name = Geopolitika.NAME, version = Geopolitika.VERSION,
-        dependencies = "required-after:ftblib;required-after:ftbutilities;after:xaerominimapfair;after:xaeroworldmap")
+        dependencies = "required-after:ftblib;required-after:ftbutilities;after:xaerominimapfair;after:xaeroworldmap;after:gregtechce")
 public class Geopolitika
 {
     public static final String MODID = "geopolitika";
@@ -58,6 +59,7 @@ public class Geopolitika
         if(event.getSide() == Side.CLIENT) {
             XaeroIntegrationCommon.postInit();
         }
+        GTCEuIntegration.postInit();
     }
 
     @Mod.EventHandler

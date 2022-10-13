@@ -1,0 +1,35 @@
+package kaktusz.geopolitika.permaloaded.tileentities;
+
+import mcp.MethodsReturnNonnullByDefault;
+import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.math.BlockPos;
+import net.minecraftforge.common.capabilities.Capability;
+import net.minecraftforge.energy.CapabilityEnergy;
+import net.minecraftforge.energy.IEnergyStorage;
+
+import javax.annotation.ParametersAreNonnullByDefault;
+
+@MethodsReturnNonnullByDefault
+@ParametersAreNonnullByDefault
+public class LabourMachineFE extends LabourMachine<IEnergyStorage> {
+	public static final int ID = 900;
+
+	public LabourMachineFE(BlockPos position) {
+		super(position);
+	}
+
+	@Override
+	protected void onLabourNotReceived(TileEntity te, IEnergyStorage capability) {
+		capability.receiveEnergy(-capability.getEnergyStored(), false); //using receive to bypass extract limits
+	}
+
+	@Override
+	protected Capability<IEnergyStorage> getRequiredCapability() {
+		return CapabilityEnergy.ENERGY;
+	}
+
+	@Override
+	public int getID() {
+		return ID;
+	}
+}

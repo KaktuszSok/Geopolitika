@@ -103,7 +103,7 @@ public class Farm extends ExclusiveZoneTE implements LabourConsumer, Displayable
 		if (plantable == null)
 			return;
 
-		labourReceivedLastTick = consumeLabour(getLabourPerTick(), 1);
+		labourReceivedLastTick = consumeLabour(getLabourPerTick());
 		if (labourReceivedLastTick < getLabourPerTick()) { //insufficient labour
 			if(getWorld().isBlockLoaded(getPosition(), false)) {
 				ParticleUtils.spawnParticleForAll(
@@ -234,7 +234,7 @@ public class Farm extends ExclusiveZoneTE implements LabourConsumer, Displayable
 	}
 
 	@Override
-	public PermaloadedTileEntity getTileEntity() {
+	public PermaloadedTileEntity getPermaTileEntity() {
 		return this;
 	}
 

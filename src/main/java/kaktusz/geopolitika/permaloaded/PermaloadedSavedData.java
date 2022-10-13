@@ -5,9 +5,7 @@ import com.google.common.collect.Multimap;
 import com.google.common.collect.MultimapBuilder;
 import kaktusz.geopolitika.Geopolitika;
 import kaktusz.geopolitika.blocks.BlockPermaBase;
-import kaktusz.geopolitika.permaloaded.tileentities.ExclusiveZoneMarker;
-import kaktusz.geopolitika.permaloaded.tileentities.PTEInterface;
-import kaktusz.geopolitika.permaloaded.tileentities.PermaloadedTileEntity;
+import kaktusz.geopolitika.permaloaded.tileentities.*;
 import kaktusz.geopolitika.states.StatesManager;
 import kaktusz.geopolitika.util.PrecalcSpiral;
 import mcp.MethodsReturnNonnullByDefault;
@@ -35,6 +33,8 @@ public class PermaloadedSavedData extends WorldSavedData {
 	public static final Map<Integer, Function<BlockPos, PermaloadedEntity>> entityFactory = new HashMap<>();
 	static {
 		entityFactory.put(ExclusiveZoneMarker.ID, ExclusiveZoneMarker::new);
+		entityFactory.put(LabourMachineFE.ID, LabourMachineFE::new);
+		entityFactory.putIfAbsent(ExternalModPTE.ID_MACHINE_GT, bp -> new ExternalModPTE(bp, ExternalModPTE.ID_MACHINE_GT));
 	}
 
 	/**
@@ -49,6 +49,7 @@ public class PermaloadedSavedData extends WorldSavedData {
 	private World world;
 	@SuppressWarnings("UnstableApiUsage")
 	private final Multimap<ChunkPos, PermaloadedTileEntity> chunkTileEntities = MultimapBuilder.hashKeys().hashSetValues().build();
+	private final Queue<Runnable> actionsAfterTick = new LinkedList<>();
 
 	public PermaloadedSavedData() {
 		super(DATA_NAME);
@@ -260,6 +261,13 @@ public class PermaloadedSavedData extends WorldSavedData {
 		return false;
 	}
 
+	/**
+	 * Enqueues an action to be called right after we are done ticking the world.
+	 */
+	public void queueActionAfterTick(Runnable action) {
+		actionsAfterTick.add(action);
+	}
+
 	private final PermaloadedTileEntity[] arrayCache = new PermaloadedTileEntity[0];
 	public void onChunkLoaded(Chunk chunk) {
 		for (PermaloadedTileEntity tileEntity : chunkTileEntities.get(chunk.getPos()).toArray(arrayCache)) {
@@ -275,6 +283,9 @@ public class PermaloadedSavedData extends WorldSavedData {
 	public void onWorldTick() {
 		for (PermaloadedTileEntity te : chunkTileEntities.values()) {
 			te.onTick();
+		}
+		while (!actionsAfterTick.isEmpty()) {
+			actionsAfterTick.poll().run();
 		}
 	}
 

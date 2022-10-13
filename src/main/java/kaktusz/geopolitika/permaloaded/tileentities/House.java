@@ -77,7 +77,7 @@ public class House extends BuildingTE<BuildingHouse> implements LabourSupplier, 
 	}
 
 	@Override
-	public PermaloadedTileEntity getTileEntity() {
+	public PermaloadedTileEntity getPermaTileEntity() {
 		return this;
 	}
 

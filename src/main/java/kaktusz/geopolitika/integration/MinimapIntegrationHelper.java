@@ -1,6 +1,9 @@
 package kaktusz.geopolitika.integration;
 
+import akka.util.ConcurrentMultiMap;
 import com.feed_the_beast.ftblib.lib.icon.Color4I;
+import com.google.common.collect.ListMultimap;
+import com.google.common.collect.MultimapBuilder;
 import kaktusz.geopolitika.Geopolitika;
 import kaktusz.geopolitika.init.ModConfig;
 import kaktusz.geopolitika.networking.PTEDisplaysSyncPacket;
@@ -10,12 +13,14 @@ import kaktusz.geopolitika.states.CommonStateInfo;
 import kaktusz.geopolitika.states.StatesManager;
 import kaktusz.geopolitika.tileentities.TileEntityControlPoint;
 import kaktusz.geopolitika.util.ColourUtils;
+import kaktusz.geopolitika.util.Vec2i;
 import mcp.MethodsReturnNonnullByDefault;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.Style;
 import net.minecraft.util.text.TextComponentString;
@@ -25,11 +30,9 @@ import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
 import javax.annotation.ParametersAreNonnullByDefault;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @SideOnly(Side.CLIENT)
@@ -39,7 +42,10 @@ public class MinimapIntegrationHelper {
 
 	private static final Color4I CONFLICT_COLOUR = Color4I.rgba(255, 0, 0, 50);
 	private static final Map<BlockPos, PTEDisplay> PTE_DISPLAYS = new ConcurrentHashMap<>();
-	private static final Map<BlockPos, PTEDisplay> PTE_DISPLAYS_CACHED = new ConcurrentHashMap<>();
+	private static final Map<ChunkPos, Map<BlockPos, PTEDisplay>> PTE_DISPLAYS_CACHED = new ConcurrentHashMap<>();
+	@SuppressWarnings("UnstableApiUsage")
+	private static final ListMultimap<Vec2i, PTEDisplay> PTE_DISPLAYS_SORTED = MultimapBuilder.hashKeys().arrayListValues().build();
+	private static int cacheSize = 0;
 	private static int MAX_CACHE_SIZE = 10000;
 	private static final ITextComponent CACHED_DISPLAY_TEXTCOMPONENT = new TextComponentString("(Cached)").setStyle(new Style()
 			.setColor(TextFormatting.DARK_GRAY)
@@ -108,7 +114,7 @@ public class MinimapIntegrationHelper {
 		GlStateManager.popMatrix();
 	}
 
-	public static void drawPTEHoverText(List<PTEDisplay> displays, int drawX, int drawZ, GuiScreen screen) {
+	public static void drawPTEHoverText(Iterable<PTEDisplay> displays, int drawX, int drawZ, GuiScreen screen) {
 		List<String> lines = new ArrayList<>();
 		boolean first = true;
 		for (PTEDisplay display : displays) {
@@ -207,47 +213,82 @@ public class MinimapIntegrationHelper {
 	}
 
 	public static void updatePTEDisplays(Map<BlockPos, PTEDisplay> newDisplays) {
-		cacheCurrentPTEDisplays();
+		long startTime = System.nanoTime();
+		cacheCurrentPTEDisplays(newDisplays);
 		//replace current displays with new displays
 		PTE_DISPLAYS.clear();
 		PTE_DISPLAYS.putAll(newDisplays);
-		//ensure no overlap between cached displays and current displays
-		for (BlockPos displayPos : newDisplays.keySet()) {
-			PTE_DISPLAYS_CACHED.remove(displayPos);
+
+		//update sorted displays
+		PTE_DISPLAYS_SORTED.clear();
+		Iterator<Map.Entry<BlockPos, PTEDisplay>> displaysUnsorted = MinimapIntegrationHelper.getPTEDisplaysStreamIncludingCached()
+				.iterator();
+		while (displaysUnsorted.hasNext()) {
+			Map.Entry<BlockPos, PTEDisplay> next = displaysUnsorted.next();
+			PTE_DISPLAYS_SORTED.put(new Vec2i(next.getKey().getX(), next.getKey().getZ()), next.getValue());
+		}
+		for (Vec2i key : PTE_DISPLAYS_SORTED.keySet()) {
+			PTE_DISPLAYS_SORTED.get(key).sort(PTEDisplay::compareTo);
 		}
 
-		//limit cache size
-		synchronized (PTE_DISPLAYS_CACHED) {
-			int toRemove = PTE_DISPLAYS_CACHED.size() - MAX_CACHE_SIZE;
-			if(toRemove <= 0)
-				return;
-			List<BlockPos> removeList = new ArrayList<>();
-			Iterator<BlockPos> iter = PTE_DISPLAYS_CACHED.keySet().iterator();
-			while (toRemove > 0 && iter.hasNext()) {
-				removeList.add(iter.next());
-				toRemove--;
-			}
-			for (BlockPos blockPos : removeList) {
-				PTE_DISPLAYS_CACHED.remove(blockPos);
-			}
-		}
+		double elapsed = (System.nanoTime() - startTime)/1000000d;
+		Geopolitika.logger.info("Update PTE Displays took " + elapsed + "ms");
 	}
 
 	public static void clearCachedPTEDisplays() {
 		PTE_DISPLAYS_CACHED.clear();
+		cacheSize = 0;
 	}
 
-	private static void cacheCurrentPTEDisplays() {
+	/**
+	 * Caches current PTE Displays and removes any cached displays which share a chunk with the new displays.
+	 */
+	private static void cacheCurrentPTEDisplays(Map<BlockPos, PTEDisplay> newDisplays) {
+		Set<ChunkPos> ignoreChunks = newDisplays.keySet().stream().map(ChunkPos::new).collect(Collectors.toSet());
 		for (Map.Entry<BlockPos, PTEDisplay> kvp : PTE_DISPLAYS.entrySet()) {
+			ChunkPos displayChunk = new ChunkPos(kvp.getKey());
+			if(ignoreChunks.contains(displayChunk))
+				continue; //don't cache overwritten chunks
+
 			kvp.getValue().setCached();
-			PTE_DISPLAYS_CACHED.put(kvp.getKey(), kvp.getValue());
+			PTE_DISPLAYS_CACHED.computeIfAbsent(displayChunk, cp -> new ConcurrentHashMap<>())
+					.put(kvp.getKey(), kvp.getValue());
+			cacheSize++;
+		}
+
+		//un-cache any overwritten chunks
+		for (ChunkPos ignoreChunk : ignoreChunks) {
+			Map<BlockPos, PTEDisplay> removed = PTE_DISPLAYS_CACHED.remove(ignoreChunk);
+			if(removed != null)
+				cacheSize -= removed.size();
+		}
+
+		//limit cache size
+		synchronized (PTE_DISPLAYS_CACHED) {
+			if(cacheSize <= MAX_CACHE_SIZE)
+				return;
+			List<ChunkPos> removeList = new ArrayList<>();
+			Iterator<Map.Entry<ChunkPos, Map<BlockPos, PTEDisplay>>> iter = PTE_DISPLAYS_CACHED.entrySet().iterator();
+			while (cacheSize > MAX_CACHE_SIZE && iter.hasNext()) {
+				Map.Entry<ChunkPos, Map<BlockPos, PTEDisplay>> chunkDisplays = iter.next();
+				removeList.add(chunkDisplays.getKey()); //remove all cached displays in chunk
+				int chunkDisplaysCount = chunkDisplays.getValue().size();
+				cacheSize -= chunkDisplaysCount;
+			}
+			for (ChunkPos chunkPos : removeList) {
+				PTE_DISPLAYS_CACHED.remove(chunkPos);
+			}
 		}
 	}
 
 	public static Stream<Map.Entry<BlockPos, PTEDisplay>> getPTEDisplaysStreamIncludingCached() {
 		return Stream.concat(
 				PTE_DISPLAYS.entrySet().stream(),
-				PTE_DISPLAYS_CACHED.entrySet().stream()
+				PTE_DISPLAYS_CACHED.values().stream().flatMap(chunk -> chunk.entrySet().stream())
 		);
+	}
+
+	public static ListMultimap<Vec2i, PTEDisplay> getSortedPTEDisplaysIncludingCached() {
+		return PTE_DISPLAYS_SORTED;
 	}
 }

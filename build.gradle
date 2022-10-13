@@ -79,6 +79,7 @@ dependencies {
     deobfProvided "curse.maven:xaerosworldmap-317780:3732792"
     runtimeOnly(deobfCompile("curse.maven:xaerosminimap-263466:3728380"))
     runtimeOnly(deobfCompile("curse.maven:xaerosworldmap-317780:3732792"))
+    compileOnly("curse.maven:gregtechceu-557242:3949406")
 }
 
 processResources {

@@ -1,10 +1,14 @@
 package kaktusz.geopolitika.integration;
 
+import com.google.common.collect.ListMultimap;
+import com.google.common.collect.MultimapBuilder;
+import com.google.common.collect.SortedSetMultimap;
 import kaktusz.geopolitika.Geopolitika;
 import kaktusz.geopolitika.permaloaded.tileentities.PTEDisplay;
 import kaktusz.geopolitika.states.ClientStatesManager;
 import kaktusz.geopolitika.states.CommonStateInfo;
 import kaktusz.geopolitika.util.ReflectionUtils;
+import kaktusz.geopolitika.util.Vec2i;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiScreen;
@@ -12,6 +16,7 @@ import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.entity.Entity;
+import net.minecraft.item.ItemStack;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.World;
@@ -123,40 +128,37 @@ public class XaeroWorldmapIntegration {
 			RenderHelper.enableGUIStandardItemLighting();
 
 			boolean drawRegionTooltip = GuiScreen.isShiftKeyDown() || getUserScale() < 1.0d; //if shift is held or we are zoomed out, we want to draw region info instead of hovered PTEs tooltip.
-			List<PTEDisplay> hovered = new ArrayList<>();
-			BlockPos closestHoveredBlockPos = null;
+			Vec2i closestHoveredCoord = null;
 			double closestHoveredDist = Double.POSITIVE_INFINITY;
 
 			int mouseBlockPosX = screenToBlockPos(scaledMouseX, cameraX, scale, width);
 			int mouseBlockPosZ = screenToBlockPos(scaledMouseY, cameraZ, scale, height);
 
-			Iterator<Map.Entry<BlockPos, PTEDisplay>> displaysSorted = MinimapIntegrationHelper.getPTEDisplaysStreamIncludingCached()
-					.sorted(Comparator.comparingInt(
-							entry -> entry.getValue().zOrder //sort by zOrder
-					)).iterator();
-			while (displaysSorted.hasNext())
+			//get all PTEDisplays sorted per-coordinate
+			ListMultimap<Vec2i, PTEDisplay> displaysByCoord = MinimapIntegrationHelper.getSortedPTEDisplaysIncludingCached();
+			for (Vec2i coord : displaysByCoord.keySet())
 			{
-				Map.Entry<BlockPos, PTEDisplay> kvp = displaysSorted.next();
-				BlockPos bp = kvp.getKey();
-				PTEDisplay disp = kvp.getValue();
+				//only care about highest ordered display with same icon
+				Set<ItemStack> rendered = new HashSet<>();
+				List<PTEDisplay> displaysAtCoord = displaysByCoord.get(coord);
+				for (int i = displaysAtCoord.size() - 1; i >= 0; i--) {
+					PTEDisplay disp = displaysAtCoord.get(i);
+					if(rendered.contains(disp.displayStack))
+						continue;
+					rendered.add(disp.displayStack);
 
-				MinimapIntegrationHelper.drawPTEDisplay(disp, bp.getX(), bp.getZ(), getUserScale());
-				if(drawRegionTooltip)
-					continue; //ignore PTE tooltips if we are drawing the region tooltip instead
+					MinimapIntegrationHelper.drawPTEDisplay(disp, coord.getX(), coord.getY(), getUserScale());
+					if(drawRegionTooltip)
+						continue; //ignore PTE tooltips if we are drawing the region tooltip instead
 
-				//finding closest tooltips:
-				double dx = Math.abs(mouseBlockPosX - bp.getX());
-				double dz = Math.abs(mouseBlockPosZ - bp.getZ());
-				double maxHoverDist = 16d/getUserScale();
-				if(dx < maxHoverDist && dz < maxHoverDist && dx+dz <= closestHoveredDist) {
-					if(closestHoveredBlockPos == null
-							|| closestHoveredBlockPos.getX() != bp.getX()
-							|| closestHoveredBlockPos.getZ() != bp.getZ()) {
-						hovered.clear(); //clear the list if we are NOT hovering over overlapping blocks (overlapping = same XZ)
+					//finding closest tooltip:
+					double dx = Math.abs(mouseBlockPosX - coord.getX());
+					double dz = Math.abs(mouseBlockPosZ - coord.getY());
+					double maxHoverDist = 16d/getUserScale();
+					if(dx < maxHoverDist && dz < maxHoverDist && dx+dz <= closestHoveredDist) {
+						closestHoveredCoord = coord;
+						closestHoveredDist = dx+dz;
 					}
-					closestHoveredBlockPos = bp;
-					hovered.add(disp);
-					closestHoveredDist = dx+dz;
 				}
 			}
 			RenderHelper.disableStandardItemLighting();
@@ -175,8 +177,8 @@ public class XaeroWorldmapIntegration {
 						scaledMouseY,
 						this
 				);
-			} else if(!hovered.isEmpty()) { //draw hovered PTEs tooltip
-				MinimapIntegrationHelper.drawPTEHoverText(hovered, scaledMouseX, scaledMouseY, this);
+			} else if(closestHoveredCoord  != null) { //draw hovered PTEs tooltip
+				MinimapIntegrationHelper.drawPTEHoverText(displaysByCoord.get(closestHoveredCoord), scaledMouseX, scaledMouseY, this);
 			}
 
 			if(nowTime >= nextCacheRefreshTimeMillis) {
@@ -194,7 +196,7 @@ public class XaeroWorldmapIntegration {
 		}
 
 		protected int screenToBlockPos(double screenPos, double camPos, double scale, int screenSize) {
-			return (int) ((camPos + (screenPos - screenSize/2.0)/scale)-1.0d);
+			return (int)Math.floor((camPos + (screenPos - screenSize/2.0)/scale));
 		}
 
 		protected void clearClaimedChunksCache() {

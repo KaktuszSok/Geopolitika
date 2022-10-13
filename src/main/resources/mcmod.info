@@ -11,6 +11,6 @@
   "credits": "Kaktusz - Lead Dev.",
   "logoFile": "",
   "screenshots": [],
-  "dependencies": [ftblib, ftbutilities, xaerominimapfair, xaeroworldmap]
+  "dependencies": [ftblib, ftbutilities, xaerominimapfair, xaeroworldmap, gregtechce]
 }
 ]
