@@ -21,7 +21,6 @@ public class LabourMachineFE extends LabourMachine<IEnergyStorage> {
 
 	@Override
 	protected void onLabourNotReceived(TileEntity te, IEnergyStorage capability) {
-		Geopolitika.logger.info("Draining " + capability.getEnergyStored() + " energy from " + te.getDisplayName() + " at " + getPosition());
 		int drained = capability.receiveEnergy(-capability.getEnergyStored(), false); //using receive to bypass extract limits
 		if(drained == 0) //if receiving negative energy does not work, try extract instead
 			capability.extractEnergy(capability.getEnergyStored(), false);

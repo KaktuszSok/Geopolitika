@@ -25,7 +25,6 @@ public class LabourMachineGT extends LabourMachine<IEnergyContainer> {
 		long in = capability.getInputAmperage()*capability.getInputVoltage();
 		long out = capability.getOutputAmperage()*capability.getOutputVoltage();
 		long drain = 2*Math.max(in, out);
-		Geopolitika.logger.info("Draining " + drain + " energy from " + te.getDisplayName() + " at " + getPosition());
 		capability.changeEnergy(-drain); //drain energy at twice the rate it charges/outputs
 	}
 
