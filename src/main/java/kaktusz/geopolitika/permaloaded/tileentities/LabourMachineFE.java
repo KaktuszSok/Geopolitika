@@ -1,5 +1,6 @@
 package kaktusz.geopolitika.permaloaded.tileentities;
 
+import kaktusz.geopolitika.Geopolitika;
 import mcp.MethodsReturnNonnullByDefault;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.math.BlockPos;
@@ -20,7 +21,10 @@ public class LabourMachineFE extends LabourMachine<IEnergyStorage> {
 
 	@Override
 	protected void onLabourNotReceived(TileEntity te, IEnergyStorage capability) {
-		capability.receiveEnergy(-capability.getEnergyStored(), false); //using receive to bypass extract limits
+		Geopolitika.logger.info("Draining " + capability.getEnergyStored() + " energy from " + te.getDisplayName() + " at " + getPosition());
+		int drained = capability.receiveEnergy(-capability.getEnergyStored(), false); //using receive to bypass extract limits
+		if(drained == 0) //if receiving negative energy does not work, try extract instead
+			capability.extractEnergy(capability.getEnergyStored(), false);
 	}
 
 	@Override

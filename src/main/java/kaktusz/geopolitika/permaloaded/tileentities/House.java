@@ -1,6 +1,7 @@
 package kaktusz.geopolitika.permaloaded.tileentities;
 
 import kaktusz.geopolitika.buildings.BuildingHouse;
+import kaktusz.geopolitika.integration.PTEDisplay;
 import mcp.MethodsReturnNonnullByDefault;
 import net.minecraft.init.Items;
 import net.minecraft.item.ItemStack;
@@ -90,7 +91,7 @@ public class House extends BuildingTE<BuildingHouse> implements LabourSupplier, 
 				disp.hoverText += " (INVALID)";
 			}
 			else {
-				disp.hoverText += " (CRAMPED)";
+				disp.hoverText += " (NO RESIDENTS)";
 			}
 		} else if(!supplied) {
 			disp.hoverText += " (OUT OF SUPPLIES)";

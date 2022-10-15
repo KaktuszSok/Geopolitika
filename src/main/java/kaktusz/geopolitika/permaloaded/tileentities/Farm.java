@@ -1,7 +1,7 @@
 package kaktusz.geopolitika.permaloaded.tileentities;
 
 import kaktusz.geopolitika.blocks.BlockFarm;
-import kaktusz.geopolitika.util.ParticleUtils;
+import kaktusz.geopolitika.integration.PTEDisplay;
 import kaktusz.geopolitika.util.PermissionUtils;
 import kaktusz.geopolitika.util.PrecalcSpiral;
 import net.minecraft.block.Block;
@@ -12,11 +12,9 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.EnumFacing;
-import net.minecraft.util.EnumParticleTypes;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.World;
-import net.minecraft.world.WorldServer;
 import net.minecraftforge.common.IPlantable;
 
 public class Farm extends ExclusiveZoneTE implements LabourConsumer, DisplayablePTE {
@@ -106,19 +104,7 @@ public class Farm extends ExclusiveZoneTE implements LabourConsumer, Displayable
 		labourReceivedLastTick = consumeLabour(getLabourPerTick());
 		if (labourReceivedLastTick < getLabourPerTick()) { //insufficient labour
 			if(getWorld().isBlockLoaded(getPosition(), false)) {
-				ParticleUtils.spawnParticleForAll(
-						(WorldServer) getWorld(),
-						EnumParticleTypes.SMOKE_LARGE,
-						false,
-						getPosition().getX()+0.5D,
-						getPosition().getY()+1,
-						getPosition().getZ()+0.5D,
-						1,
-						0,
-						0,
-						0,
-						0.05d
-				);
+				spawnLabourNotReceivedParticles();
 			}
 			return;
 		}

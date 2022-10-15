@@ -1,13 +1,14 @@
 package kaktusz.geopolitika.permaloaded.tileentities;
 
 import kaktusz.geopolitika.Geopolitika;
+import kaktusz.geopolitika.init.ModConfig;
+import kaktusz.geopolitika.integration.PTEDisplay;
+import kaktusz.geopolitika.states.StatesManager;
 import kaktusz.geopolitika.util.PrecalcSpiral;
 import mcp.MethodsReturnNonnullByDefault;
-import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Blocks;
 import net.minecraft.init.Items;
-import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntity;
@@ -19,6 +20,7 @@ import net.minecraft.world.WorldServer;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.util.FakePlayerFactory;
 
+import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 @MethodsReturnNonnullByDefault
@@ -46,6 +48,11 @@ public abstract class LabourMachine<T> extends PermaloadedTileEntity implements 
 			}
 		}
 
+		//Only require labour if within a claimed chunk
+		if(!StatesManager.getChunkOwner(getPosition(), getWorld()).isValid()) {
+			return;
+		}
+
 		labourReceivedLastTick = consumeLabour(getLabourPerTick());
 		if(labourReceivedLastTick < getLabourPerTick() && getWorld().isBlockLoaded(getPosition(), false)) {
 			TileEntity te = getWorld().getTileEntity(getPosition());
@@ -56,6 +63,8 @@ public abstract class LabourMachine<T> extends PermaloadedTileEntity implements 
 			T cap = te.getCapability(getRequiredCapability(), null);
 			assert cap != null;
 			onLabourNotReceived(te, cap);
+			Geopolitika.logger.info("Labour not received for " + this.toString() + " at " + getPosition());
+			spawnLabourNotReceivedParticles();
 		}
 	}
 
@@ -69,7 +78,7 @@ public abstract class LabourMachine<T> extends PermaloadedTileEntity implements 
 	}
 
 	public double getLabourPerTick() {
-		return 0.25D;
+		return 0.5D;
 	}
 
 	@Override
@@ -79,7 +88,7 @@ public abstract class LabourMachine<T> extends PermaloadedTileEntity implements 
 
 	@Override
 	public int getSearchRadius() {
-		return 3;
+		return 1 + ModConfig.controlPointClaimRadius*2;
 	}
 
 	@Override
@@ -107,7 +116,12 @@ public abstract class LabourMachine<T> extends PermaloadedTileEntity implements 
 	}
 
 	@Override
+	@Nullable
 	public PTEDisplay getDisplay() {
+		if(!StatesManager.getChunkOwner(getPosition(), getWorld()).isValid()) {
+			return null;
+		}
+
 		ItemStack icon = null;
 		if(getWorld().isBlockLoaded(getPosition(), false)) {
 			IBlockState blockState = getWorld().getBlockState(getPosition());

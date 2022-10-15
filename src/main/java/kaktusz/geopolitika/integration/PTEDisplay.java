@@ -1,4 +1,4 @@
-package kaktusz.geopolitika.permaloaded.tileentities;
+package kaktusz.geopolitika.integration;
 
 import com.google.common.collect.BiMap;
 import io.netty.buffer.ByteBuf;
@@ -10,6 +10,7 @@ import java.util.List;
 public class PTEDisplay implements Comparable<PTEDisplay> {
 
 	public ItemStack displayStack;
+	public double iconScale = 1.0d;
 	public byte zOrder = 0;
 	public int tint = 0x00000000;
 	public float labourContribution = 0;
@@ -25,6 +26,7 @@ public class PTEDisplay implements Comparable<PTEDisplay> {
 	public PTEDisplay(ByteBuf buf, BiMap<String, Integer> stringsLUT, List<ItemStack> stacksLUT) {
 		int stackIdx = buf.readInt();
 		displayStack = stacksLUT.get(stackIdx);
+		iconScale = buf.readDouble();
 		zOrder = buf.readByte();
 		tint = buf.readInt();
 		labourContribution = buf.readFloat();
@@ -43,6 +45,7 @@ public class PTEDisplay implements Comparable<PTEDisplay> {
 		}
 		buf.writeInt(stackIdx);
 
+		buf.writeDouble(iconScale);
 		buf.writeByte(zOrder);
 		buf.writeInt(tint);
 		buf.writeFloat(labourContribution);

@@ -19,7 +19,7 @@ public class CommonStateInfo {
 
 	public CommonStateInfo(ForgeTeam state) {
 		id = state.getUID();
-		name = state.getCommandTitle();
+		name = state.getTitle();
 		colour = state.getColor();
 	}
 

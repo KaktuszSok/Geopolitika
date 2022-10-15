@@ -3,11 +3,10 @@ package kaktusz.geopolitika.networking;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
 import io.netty.buffer.ByteBuf;
-import kaktusz.geopolitika.Geopolitika;
 import kaktusz.geopolitika.integration.MinimapIntegrationHelper;
 import kaktusz.geopolitika.permaloaded.PermaloadedSavedData;
 import kaktusz.geopolitika.permaloaded.tileentities.DisplayablePTE;
-import kaktusz.geopolitika.permaloaded.tileentities.PTEDisplay;
+import kaktusz.geopolitika.integration.PTEDisplay;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
@@ -17,7 +16,6 @@ import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -40,7 +38,10 @@ public class PTEDisplaysSyncPacket implements IMessage {
 		for (DisplayablePTE displayablePTE : PermaloadedSavedData.get(world)
 				.findTileEntitiesByInterface(DisplayablePTE.class, chunkPos, VIEW_DISTANCE))
 		{
-			data.put(displayablePTE.getPermaTileEntity().getPosition(), displayablePTE.getDisplay());
+			PTEDisplay display = displayablePTE.getDisplay();
+			if(display == null)
+				continue;
+			data.put(displayablePTE.getPermaTileEntity().getPosition(), display);
 		}
 	}
 
@@ -124,7 +125,7 @@ public class PTEDisplaysSyncPacket implements IMessage {
 
 		@Override
 		public IMessage onMessage(PTEDisplaysSyncPacket message, MessageContext ctx) {
-			MinimapIntegrationHelper.updatePTEDisplays(message.data);
+			MinimapIntegrationHelper.updatePTEDisplays(message.data, VIEW_DISTANCE);
 			return null;
 		}
 	}

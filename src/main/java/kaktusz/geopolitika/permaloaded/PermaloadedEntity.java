@@ -25,6 +25,13 @@ public abstract class PermaloadedEntity {
 
 	public abstract int getID();
 
+	/***
+	 * Should this entity be saved and loaded?
+	 */
+	public boolean persistent() {
+		return true;
+	}
+
 	public void readFromNBT(NBTTagCompound nbt) {
 
 	}
@@ -34,7 +41,8 @@ public abstract class PermaloadedEntity {
 	}
 
 	public void markDirty() {
-		save.markDirty();
+		if(persistent())
+			save.markDirty();
 	}
 
 	public void onTick() {

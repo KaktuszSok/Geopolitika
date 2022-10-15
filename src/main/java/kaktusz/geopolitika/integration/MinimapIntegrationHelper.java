@@ -1,13 +1,11 @@
 package kaktusz.geopolitika.integration;
 
-import akka.util.ConcurrentMultiMap;
 import com.feed_the_beast.ftblib.lib.icon.Color4I;
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.MultimapBuilder;
 import kaktusz.geopolitika.Geopolitika;
 import kaktusz.geopolitika.init.ModConfig;
 import kaktusz.geopolitika.networking.PTEDisplaysSyncPacket;
-import kaktusz.geopolitika.permaloaded.tileentities.PTEDisplay;
 import kaktusz.geopolitika.states.ClientStatesManager;
 import kaktusz.geopolitika.states.CommonStateInfo;
 import kaktusz.geopolitika.states.StatesManager;
@@ -32,7 +30,6 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 import javax.annotation.ParametersAreNonnullByDefault;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @SideOnly(Side.CLIENT)
@@ -56,11 +53,11 @@ public class MinimapIntegrationHelper {
 			.setItalic(true)
 	);
 
-	public static void drawChunkClaim(int claimDrawX, int claimDrawZ, CommonStateInfo owner, int cx, int cz, World world) {
+	public static void drawChunkClaim(int claimDrawX, int claimDrawZ, double opacityFactor, CommonStateInfo owner, int cx, int cz, World world) {
 		//fill colour
 		Color4I colour = ClientStatesManager.isConflictState(owner) ? CONFLICT_COLOUR : owner.colour.getColor();
 		Gui.drawRect(claimDrawX, claimDrawZ, claimDrawX + 16, claimDrawZ + 16,
-				ColourUtils.colourAsInt(colour.redi(), colour.greeni(), colour.bluei(), 100));
+				ColourUtils.colourAsInt(colour.redi(), colour.greeni(), colour.bluei(), (int) (opacityFactor*100)));
 
 		//draw borders with other control points
 		BlockPos chunkCp = StatesManager.getChunkControlPointPos(cx, cz, world);
@@ -212,9 +209,9 @@ public class MinimapIntegrationHelper {
 		screen.drawHoveringText(lines, drawX, drawZ);
 	}
 
-	public static void updatePTEDisplays(Map<BlockPos, PTEDisplay> newDisplays) {
+	public static void updatePTEDisplays(Map<BlockPos, PTEDisplay> newDisplays, int cacheClearChunkDistance) {
 		long startTime = System.nanoTime();
-		cacheCurrentPTEDisplays(newDisplays);
+		cacheCurrentPTEDisplays(newDisplays, cacheClearChunkDistance);
 		//replace current displays with new displays
 		PTE_DISPLAYS.clear();
 		PTE_DISPLAYS.putAll(newDisplays);
@@ -243,11 +240,13 @@ public class MinimapIntegrationHelper {
 	/**
 	 * Caches current PTE Displays and removes any cached displays which share a chunk with the new displays.
 	 */
-	private static void cacheCurrentPTEDisplays(Map<BlockPos, PTEDisplay> newDisplays) {
-		Set<ChunkPos> ignoreChunks = newDisplays.keySet().stream().map(ChunkPos::new).collect(Collectors.toSet());
+	private static void cacheCurrentPTEDisplays(Map<BlockPos, PTEDisplay> newDisplays, int cacheClearChunkDistance) {
+		ChunkPos playerPos = new ChunkPos(Minecraft.getMinecraft().player.getPosition());
 		for (Map.Entry<BlockPos, PTEDisplay> kvp : PTE_DISPLAYS.entrySet()) {
 			ChunkPos displayChunk = new ChunkPos(kvp.getKey());
-			if(ignoreChunks.contains(displayChunk))
+			int dx = Math.abs(playerPos.x - displayChunk.x);
+			int dz = Math.abs(playerPos.z - displayChunk.z);
+			if(dx <= cacheClearChunkDistance || dz <= cacheClearChunkDistance)
 				continue; //don't cache overwritten chunks
 
 			kvp.getValue().setCached();
@@ -257,10 +256,14 @@ public class MinimapIntegrationHelper {
 		}
 
 		//un-cache any overwritten chunks
-		for (ChunkPos ignoreChunk : ignoreChunks) {
-			Map<BlockPos, PTEDisplay> removed = PTE_DISPLAYS_CACHED.remove(ignoreChunk);
-			if(removed != null)
-				cacheSize -= removed.size();
+		for (int dx = -cacheClearChunkDistance; dx <= cacheClearChunkDistance; dx++) {
+			for (int dz = -cacheClearChunkDistance; dz <= cacheClearChunkDistance; dz++) {
+				ChunkPos chunkPos = new ChunkPos(playerPos.x + dx, playerPos.z + dz);
+				Map<BlockPos, PTEDisplay> removed = PTE_DISPLAYS_CACHED.remove(chunkPos);
+				if(removed != null) {
+					cacheSize -= removed.size();
+				}
+			}
 		}
 
 		//limit cache size

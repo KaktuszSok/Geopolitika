@@ -29,4 +29,9 @@ public class ExclusiveZoneMarker extends PermaloadedTileEntity {
 	public boolean verify() {
 		return true;
 	}
+
+	@Override
+	public boolean persistent() {
+		return false;
+	}
 }

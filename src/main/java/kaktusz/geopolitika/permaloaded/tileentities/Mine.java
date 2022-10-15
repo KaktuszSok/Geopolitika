@@ -1,6 +1,7 @@
 package kaktusz.geopolitika.permaloaded.tileentities;
 
 import kaktusz.geopolitika.blocks.BlockMine;
+import kaktusz.geopolitika.integration.PTEDisplay;
 import kaktusz.geopolitika.util.MathsUtils;
 import kaktusz.geopolitika.util.PermissionUtils;
 import net.minecraft.block.BlockStairs;

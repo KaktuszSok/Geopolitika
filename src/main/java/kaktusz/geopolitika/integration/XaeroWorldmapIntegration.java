@@ -1,10 +1,6 @@
 package kaktusz.geopolitika.integration;
 
 import com.google.common.collect.ListMultimap;
-import com.google.common.collect.MultimapBuilder;
-import com.google.common.collect.SortedSetMultimap;
-import kaktusz.geopolitika.Geopolitika;
-import kaktusz.geopolitika.permaloaded.tileentities.PTEDisplay;
 import kaktusz.geopolitika.states.ClientStatesManager;
 import kaktusz.geopolitika.states.CommonStateInfo;
 import kaktusz.geopolitika.util.ReflectionUtils;
@@ -17,7 +13,6 @@ import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.entity.Entity;
 import net.minecraft.item.ItemStack;
-import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.World;
 import net.minecraftforge.client.event.GuiOpenEvent;
@@ -43,7 +38,6 @@ import xaero.map.region.MapTileChunk;
 import xaero.minimap.XaeroMinimap;
 
 import java.util.*;
-import java.util.stream.Stream;
 
 @Mod.EventBusSubscriber({Side.CLIENT})
 @SideOnly(Side.CLIENT)
@@ -121,7 +115,12 @@ public class XaeroWorldmapIntegration {
 			}
 			//2. draw chunk claims
 			claimedChunksCache.forEach((cpos, owner) -> {
-				MinimapIntegrationHelper.drawChunkClaim(cpos.x << 4, cpos.z << 4, owner, cpos.x, cpos.z, mapProcessor.getWorld());
+				double opacityFactor = 2d/getUserScale();
+				if(opacityFactor > 1)
+					opacityFactor = 1;
+				else if(opacityFactor < 0.3d)
+					opacityFactor = 0.3d;
+				MinimapIntegrationHelper.drawChunkClaim(cpos.x << 4, cpos.z << 4, opacityFactor, owner, cpos.x, cpos.z, mapProcessor.getWorld());
 			});
 
 			//3. draw PermaloadedTileEntities
@@ -386,7 +385,7 @@ public class XaeroWorldmapIntegration {
 				if (owner.isValid()) {
 					int claimDrawX = drawX + 16 * (t % 4);
 					int claimDrawZ = drawZ + 16 * (t / 4);
-					MinimapIntegrationHelper.drawChunkClaim(claimDrawX, claimDrawZ, owner, tile.getChunkX(), tile.getChunkZ(), world);
+					MinimapIntegrationHelper.drawChunkClaim(claimDrawX, claimDrawZ, 1, owner, tile.getChunkX(), tile.getChunkZ(), world);
 				}
 			}
 

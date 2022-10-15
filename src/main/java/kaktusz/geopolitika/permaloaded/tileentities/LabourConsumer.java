@@ -1,10 +1,15 @@
 package kaktusz.geopolitika.permaloaded.tileentities;
 
 import kaktusz.geopolitika.states.StatesManager;
+import kaktusz.geopolitika.util.ParticleUtils;
 import kaktusz.geopolitika.util.PrecalcSpiral;
+import net.minecraft.util.EnumParticleTypes;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
+import net.minecraft.world.WorldServer;
 
 import java.util.Iterator;
+import java.util.concurrent.ThreadLocalRandom;
 
 public interface LabourConsumer extends PTEInterface {
 	int getLabourTier();
@@ -44,5 +49,25 @@ public interface LabourConsumer extends PTEInterface {
 			received += suppliers.next().requestLabour(amount-received, getLabourTier());
 		}
 		return received;
+	}
+
+	default void spawnLabourNotReceivedParticles() {
+		if(ThreadLocalRandom.current().nextBoolean()) //spawn every 2 ticks (on average)
+			return;
+
+		BlockPos pos = getPermaTileEntity().getPosition();
+		ParticleUtils.spawnParticleForAll(
+				(WorldServer) getPermaTileEntity().getWorld(),
+				EnumParticleTypes.VILLAGER_ANGRY,
+				false,
+				pos.getX()+0.5D,
+				pos.getY()+0.5d,
+				pos.getZ()+0.5D,
+				1,
+				0.5,
+				0.5,
+				0.5,
+				0.05d
+		);
 	}
 }

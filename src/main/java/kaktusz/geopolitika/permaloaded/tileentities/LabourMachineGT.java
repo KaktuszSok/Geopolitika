@@ -2,6 +2,7 @@ package kaktusz.geopolitika.permaloaded.tileentities;
 
 import gregtech.api.capability.GregtechCapabilities;
 import gregtech.api.capability.IEnergyContainer;
+import kaktusz.geopolitika.Geopolitika;
 import kaktusz.geopolitika.permaloaded.ExternalModPTE;
 import mcp.MethodsReturnNonnullByDefault;
 import net.minecraft.tileentity.TileEntity;
@@ -21,7 +22,11 @@ public class LabourMachineGT extends LabourMachine<IEnergyContainer> {
 
 	@Override
 	protected void onLabourNotReceived(TileEntity te, IEnergyContainer capability) {
-		capability.changeEnergy(-2*capability.getInputVoltage()*capability.getInputAmperage()); //drain energy at twice the rate it charges
+		long in = capability.getInputAmperage()*capability.getInputVoltage();
+		long out = capability.getOutputAmperage()*capability.getOutputVoltage();
+		long drain = 2*Math.max(in, out);
+		Geopolitika.logger.info("Draining " + drain + " energy from " + te.getDisplayName() + " at " + getPosition());
+		capability.changeEnergy(-drain); //drain energy at twice the rate it charges/outputs
 	}
 
 	@Override

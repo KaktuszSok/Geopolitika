@@ -107,7 +107,7 @@ public class GameplayEventHandler {
 		if(te.hasCapability(CapabilityEnergy.ENERGY, null)) {
 			pte = new LabourMachineFE(e.getPos());
 		}
-		if(GTCEuIntegration.hasTileEntityGregtechEnergyCapability(te)) {
+		else if(GTCEuIntegration.hasTileEntityGregtechEnergyCapability(te)) {
 			pte = new LabourMachineGT(e.getPos());
 		}
 

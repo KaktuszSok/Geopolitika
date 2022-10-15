@@ -207,6 +207,9 @@ public class PermaloadedSavedData extends WorldSavedData {
 			chunkNBT.setInteger("cz", cp.z);
 			NBTTagList chunkTEs = new NBTTagList();
 			for (PermaloadedTileEntity te : chunkTileEntities.get(cp)) {
+				if(!te.persistent()) //skip non-persistent PTEs
+					continue;
+
 				NBTTagCompound teNBT = new NBTTagCompound();
 				teNBT.setInteger("id", te.getID());
 				te.writeToNBT(teNBT);

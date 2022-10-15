@@ -10,8 +10,6 @@ import java.util.Collection;
 
 public abstract class ExclusiveZoneTE extends PermaloadedTileEntity {
 
-	private int savedRadius = 0;
-
 	public ExclusiveZoneTE(BlockPos position) {
 		super(position);
 	}
@@ -19,21 +17,19 @@ public abstract class ExclusiveZoneTE extends PermaloadedTileEntity {
 	@Override
 	public void readFromNBT(NBTTagCompound nbt) {
 		super.readFromNBT(nbt);
-		savedRadius = nbt.getByte("claimRadius");
 	}
 
 	@Override
 	public NBTTagCompound writeToNBT(NBTTagCompound compound) {
 		super.writeToNBT(compound);
-		compound.setByte("claimRadius", (byte)savedRadius);
 		return compound;
 	}
 
 	public abstract int getRadius();
 
 	@Override
-	public void onAdded() {
-		claimRadius();
+	public void onLoaded() {
+		claimRadius(); //ExclusiveZoneMarkers are not persistent so we create them whenever we are loaded (or added)
 	}
 
 	@Override
@@ -48,7 +44,7 @@ public abstract class ExclusiveZoneTE extends PermaloadedTileEntity {
 	}
 
 	protected void claimRadius() {
-		int radius = savedRadius = getRadius();
+		int radius = getRadius();
 		ChunkPos centre = new ChunkPos(getPosition());
 		for (int x = -radius; x <= radius; x++) {
 			for (int z = -radius; z <= radius; z++) {

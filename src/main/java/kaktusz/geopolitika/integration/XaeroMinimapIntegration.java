@@ -359,7 +359,7 @@ public class XaeroMinimapIntegration {
 				if (owner.isValid()) {
 					int claimDrawX = drawX + 16 * (t % 4);
 					int claimDrawZ = drawZ + 16 * (t / 4);
-					MinimapIntegrationHelper.drawChunkClaim(claimDrawX, claimDrawZ, owner, tile.getX(), tile.getZ(), world);
+					MinimapIntegrationHelper.drawChunkClaim(claimDrawX, claimDrawZ, 1, owner, tile.getX(), tile.getZ(), world);
 				}
 			}
 		}
