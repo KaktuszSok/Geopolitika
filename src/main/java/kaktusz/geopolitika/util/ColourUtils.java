@@ -17,4 +17,15 @@ public class ColourUtils {
 
 		return a | r | g | b;
 	}
+
+	/**
+	 * Returns the given colour with a new opacity (alpha value)
+	 * @param opacity Must be in range 0,255 inclusive
+	 */
+	public static int colourWithOpacity(int colour, int opacity) {
+		colour = colour & 0x00FFFFFF;
+		opacity = (opacity << 24);
+
+		return opacity | colour;
+	}
 }

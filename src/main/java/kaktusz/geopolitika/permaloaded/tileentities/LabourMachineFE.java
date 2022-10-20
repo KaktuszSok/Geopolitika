@@ -1,6 +1,5 @@
 package kaktusz.geopolitika.permaloaded.tileentities;
 
-import kaktusz.geopolitika.Geopolitika;
 import mcp.MethodsReturnNonnullByDefault;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.math.BlockPos;

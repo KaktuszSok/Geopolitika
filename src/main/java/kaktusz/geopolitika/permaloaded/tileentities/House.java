@@ -1,5 +1,6 @@
 package kaktusz.geopolitika.permaloaded.tileentities;
 
+import kaktusz.geopolitika.Geopolitika;
 import kaktusz.geopolitika.buildings.BuildingHouse;
 import kaktusz.geopolitika.integration.PTEDisplay;
 import mcp.MethodsReturnNonnullByDefault;
@@ -96,7 +97,7 @@ public class House extends BuildingTE<BuildingHouse> implements LabourSupplier, 
 		} else if(!supplied) {
 			disp.hoverText += " (OUT OF SUPPLIES)";
 		}
-		disp.hoverText += "\n - Labour provided: " + labourProvidedLastTick + "/" + getIdealLabourPerTick();
+		disp.hoverText += getLabourHoverText(labourProvidedLastTick);
 		disp.labourContribution = (float) labourProvidedLastTick;
 		disp.idealLabourContribution = (float) getIdealLabourPerTick();
 		if(getIdealLabourPerTick() == 0 || !supplied) {

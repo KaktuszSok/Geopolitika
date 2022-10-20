@@ -1,5 +1,6 @@
 package kaktusz.geopolitika.permaloaded.tileentities;
 
+import com.feed_the_beast.ftblib.lib.icon.Color4I;
 import kaktusz.geopolitika.blocks.BlockFarm;
 import kaktusz.geopolitika.integration.PTEDisplay;
 import kaktusz.geopolitika.util.PermissionUtils;
@@ -23,13 +24,16 @@ public class Farm extends ExclusiveZoneTE implements LabourConsumer, Displayable
 	private static final int BORDER_WIDTH = 1;
 	private static final int REACH_UP = 1;
 	private static final int REACH_DOWN = 2;
+	private static final Color4I WORK_RADIUS_COLOUR = Color4I.rgba(58, 125, 31, 222);
+	private static final short WORK_RADIUS_FILL_OPACITY = 80;
 
 	private final PrecalcSpiral spiral;
-	private PrecalcSpiral labourSpiral;
-	private double labourReceivedLastTick = 0;
 	private int spiralIdx = 0;
 	private IPlantable plantable = null;
 	private int tickCooldown = 0;
+
+	private PrecalcSpiral labourSpiral;
+	private double labourReceived = 0;
 
 	public Farm(BlockPos position) {
 		super(position);
@@ -97,12 +101,10 @@ public class Farm extends ExclusiveZoneTE implements LabourConsumer, Displayable
 
 	@Override
 	public void onTick() {
-		labourReceivedLastTick = 0;
 		if (plantable == null)
 			return;
 
-		labourReceivedLastTick = consumeLabour(getLabourPerTick());
-		if (labourReceivedLastTick < getLabourPerTick()) { //insufficient labour
+		if (getLabourReceived() < getLabourPerTick()) { //insufficient labour
 			if(getWorld().isBlockLoaded(getPosition(), false)) {
 				spawnLabourNotReceivedParticles();
 			}
@@ -196,12 +198,22 @@ public class Farm extends ExclusiveZoneTE implements LabourConsumer, Displayable
 	}
 
 	public double getLabourPerTick() {
-		return 3.0D;
+		return plantable == null ? 0 : 3.0D;
 	}
 
 	@Override
 	public int getLabourTier() {
 		return 1;
+	}
+
+	@Override
+	public double getLabourReceived() {
+		return labourReceived;
+	}
+
+	@Override
+	public void addLabourReceived(double amount) {
+		labourReceived += amount;
 	}
 
 	@Override
@@ -226,19 +238,17 @@ public class Farm extends ExclusiveZoneTE implements LabourConsumer, Displayable
 
 	@Override
 	public PTEDisplay getDisplay() {
-		PTEDisplay disp = new PTEDisplay(new ItemStack(Items.WHEAT));
-		disp.hoverText = "Farm\n - Labour consumed: " + labourReceivedLastTick + (plantable == null ? "/0.0" : "/" + getLabourPerTick());
-		boolean enoughLabour = labourReceivedLastTick >= getLabourPerTick();
-		disp.labourContribution = enoughLabour ? (float) -labourReceivedLastTick : 0;
-		disp.idealLabourContribution = (float) -getLabourPerTick();
+		Item iconItem = plantable == null ? Items.WHEAT : ((Item) plantable);
+		PTEDisplay disp = createBasicPTEDisplay(new ItemStack(iconItem), "Farm");
+
+		disp.addRadiusHighlight(getSearchRadius());
+		disp.addRadiusHighlight(getRadius(), WORK_RADIUS_COLOUR.rgba(), WORK_RADIUS_FILL_OPACITY);
+
 		if(plantable == null) {
 			disp.tint = 0x55000000;
 			disp.zOrder = 1;
 		}
-		else if(labourReceivedLastTick < getLabourPerTick()) {
-			disp.tint = 0x55FF0000;
-			disp.zOrder = 2;
-		}
+
 		return disp;
 	}
 }

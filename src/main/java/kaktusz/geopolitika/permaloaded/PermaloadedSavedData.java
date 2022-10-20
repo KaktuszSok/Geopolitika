@@ -49,6 +49,7 @@ public class PermaloadedSavedData extends WorldSavedData {
 	private World world;
 	@SuppressWarnings("UnstableApiUsage")
 	private final Multimap<ChunkPos, PermaloadedTileEntity> chunkTileEntities = MultimapBuilder.hashKeys().hashSetValues().build();
+	private final Set<LabourConsumer> labourConsumers = new HashSet<>();
 	private final Queue<Runnable> actionsAfterTick = new LinkedList<>();
 
 	public PermaloadedSavedData() {
@@ -128,7 +129,7 @@ public class PermaloadedSavedData extends WorldSavedData {
 	 * This iterator should not be persisted between ticks.
 	 * @param state If not null, will skip over any chunks owned by a different state than this. If null, will not skip any chunks.
 	 */
-	public <T> Iterator<T> iterateTileEntitiesOutwards(Class<T> type, ChunkPos chunk, PrecalcSpiral spiral, @Nullable ForgeTeam state) {
+	public <T> Iterator<T> iterateTileEntitiesOutwards(Class<T> type, PrecalcSpiral spiral, @Nullable ForgeTeam state) {
 		return new Iterator<T>() {
 			private int spiralIdx = 0;
 			private Iterator<PermaloadedTileEntity> currChunkIter = null;
@@ -233,6 +234,9 @@ public class PermaloadedSavedData extends WorldSavedData {
 	private <T extends PermaloadedTileEntity> T addTileEntity(T tileEntity, boolean isNew) {
 		tileEntity.setSave(this);
 		chunkTileEntities.put(new ChunkPos(tileEntity.getPosition()), tileEntity);
+		if(tileEntity instanceof LabourConsumer) {
+			labourConsumers.add((LabourConsumer) tileEntity);
+		}
 		if(isNew)
 			tileEntity.onAdded();
 		tileEntity.onLoaded();
@@ -243,6 +247,9 @@ public class PermaloadedSavedData extends WorldSavedData {
 
 	public boolean removeTileEntity(PermaloadedTileEntity tileEntity) {
 		boolean success = chunkTileEntities.remove(new ChunkPos(tileEntity.getPosition()), tileEntity);
+		if(tileEntity instanceof LabourConsumer) {
+			labourConsumers.remove(tileEntity);
+		}
 		tileEntity.onRemoved();
 		markDirty();
 		Geopolitika.logger.info("Removed TE at " + tileEntity.getPosition());
@@ -284,9 +291,22 @@ public class PermaloadedSavedData extends WorldSavedData {
 	}
 
 	public void onWorldTick() {
+		//process labour
+		int step = 0;
+		labourConsumers.forEach(x -> x.addLabourReceived(-x.getLabourReceived())); //reset labour received to 0 for all consumers
+		Set<LabourConsumer> needLabour = new HashSet<>(labourConsumers);
+		while (!needLabour.isEmpty()) {
+			final int stepImmutable = step;
+			needLabour.removeIf(x -> x.consumeLabour(stepImmutable));
+			step++;
+		}
+
+		//tick entities
 		for (PermaloadedTileEntity te : chunkTileEntities.values()) {
 			te.onTick();
 		}
+
+		//do post-tick actions
 		while (!actionsAfterTick.isEmpty()) {
 			actionsAfterTick.poll().run();
 		}

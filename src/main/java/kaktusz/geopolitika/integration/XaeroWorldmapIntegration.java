@@ -161,9 +161,20 @@ public class XaeroWorldmapIntegration {
 				}
 			}
 			RenderHelper.disableStandardItemLighting();
+
+			//4. draw radius highlights
+			if(closestHoveredCoord  != null) {
+				for (PTEDisplay hovered : displaysByCoord.get(closestHoveredCoord)) {
+					for (PTEDisplay.RadiusHighlight highlight : hovered.radiusHighlights) {
+						MinimapIntegrationHelper.drawRadiusHighlight(closestHoveredCoord.x >> 4, closestHoveredCoord.y >> 4,
+								highlight.radius, highlight.colour, highlight.fillOpacity);
+					}
+				}
+			}
+
 			GlStateManager.popMatrix();
 
-			//3.5 draw hovered tooltip
+			//5. draw hovered tooltip
 			if(drawRegionTooltip) { //draw hovered region tooltip
 				ChunkPos hoveredChunk = new ChunkPos(mouseBlockPosX >> 4, mouseBlockPosZ >> 4);
 				CommonStateInfo hoveredOwner = claimedChunksCache.getOrDefault(hoveredChunk, CommonStateInfo.NONE);

@@ -3,6 +3,7 @@ package kaktusz.geopolitika.networking;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
 import io.netty.buffer.ByteBuf;
+import kaktusz.geopolitika.Geopolitika;
 import kaktusz.geopolitika.integration.MinimapIntegrationHelper;
 import kaktusz.geopolitika.permaloaded.PermaloadedSavedData;
 import kaktusz.geopolitika.permaloaded.tileentities.DisplayablePTE;

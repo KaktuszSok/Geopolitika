@@ -30,7 +30,7 @@ public abstract class LabourMachine<T> extends PermaloadedTileEntity implements 
 	private static final Vec3d RAYTRACE_VECTOR = new Vec3d(0, 0, 0);
 	private PrecalcSpiral labourSpiral;
 	private int reverifyCooldown = 200;
-	private double labourReceivedLastTick = 0;
+	private double labourReceived = 0;
 	private String machineName = "Machine";
 
 	public LabourMachine(BlockPos position) {
@@ -53,8 +53,7 @@ public abstract class LabourMachine<T> extends PermaloadedTileEntity implements 
 			return;
 		}
 
-		labourReceivedLastTick = consumeLabour(getLabourPerTick());
-		if(labourReceivedLastTick < getLabourPerTick() && getWorld().isBlockLoaded(getPosition(), false)) {
+		if(getLabourReceived() < getLabourPerTick() && getWorld().isBlockLoaded(getPosition(), false)) {
 			TileEntity te = getWorld().getTileEntity(getPosition());
 			if(te == null || !te.hasCapability(getRequiredCapability(), null)) {
 				Geopolitika.logger.warn("Tile entity with energy expected at " + getPosition() + " but none found.");
@@ -89,6 +88,16 @@ public abstract class LabourMachine<T> extends PermaloadedTileEntity implements 
 	@Override
 	public int getSearchRadius() {
 		return 1 + ModConfig.controlPointClaimRadius*2;
+	}
+
+	@Override
+	public double getLabourReceived() {
+		return labourReceived;
+	}
+
+	@Override
+	public void addLabourReceived(double amount) {
+		labourReceived += amount;
 	}
 
 	@Override
@@ -133,14 +142,11 @@ public abstract class LabourMachine<T> extends PermaloadedTileEntity implements 
 					FakePlayerFactory.getMinecraft((WorldServer) getWorld()));
 		}
 
-		PTEDisplay display = new PTEDisplay(icon != null && icon.getItem() != Items.AIR ? icon : new ItemStack(Blocks.IRON_BLOCK));
-		display.hoverText = machineName + "\n - Labour consumed: " + labourReceivedLastTick + "/" + getLabourPerTick();
-		display.labourContribution = (float) -labourReceivedLastTick;
-		display.idealLabourContribution = (float) -getLabourPerTick();
-		if(labourReceivedLastTick < getLabourPerTick()) {
-			display.tint = 0x55FF0000;
-			display.zOrder = 2;
-		}
+		icon = icon != null && icon.getItem() != Items.AIR ? icon : new ItemStack(Blocks.IRON_BLOCK);
+		PTEDisplay display = createBasicPTEDisplay(icon, machineName);
+
+		display.addRadiusHighlight(getSearchRadius());
+
 		return display;
 	}
 

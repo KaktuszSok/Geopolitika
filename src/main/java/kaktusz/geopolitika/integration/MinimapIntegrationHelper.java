@@ -6,6 +6,7 @@ import com.google.common.collect.MultimapBuilder;
 import kaktusz.geopolitika.Geopolitika;
 import kaktusz.geopolitika.init.ModConfig;
 import kaktusz.geopolitika.networking.PTEDisplaysSyncPacket;
+import kaktusz.geopolitika.permaloaded.tileentities.LabourConsumer;
 import kaktusz.geopolitika.states.ClientStatesManager;
 import kaktusz.geopolitika.states.CommonStateInfo;
 import kaktusz.geopolitika.states.StatesManager;
@@ -28,22 +29,22 @@ import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
 import javax.annotation.ParametersAreNonnullByDefault;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 
+//this should be converted to singleton at some point
 @SideOnly(Side.CLIENT)
 @ParametersAreNonnullByDefault
 @MethodsReturnNonnullByDefault
 public class MinimapIntegrationHelper {
 
 	private static final Color4I CONFLICT_COLOUR = Color4I.rgba(255, 0, 0, 50);
-	private static final Map<BlockPos, PTEDisplay> PTE_DISPLAYS = new ConcurrentHashMap<>();
-	private static final Map<ChunkPos, Map<BlockPos, PTEDisplay>> PTE_DISPLAYS_CACHED = new ConcurrentHashMap<>();
-	@SuppressWarnings("UnstableApiUsage")
-	private static final ListMultimap<Vec2i, PTEDisplay> PTE_DISPLAYS_SORTED = MultimapBuilder.hashKeys().arrayListValues().build();
-	private static int cacheSize = 0;
-	private static int MAX_CACHE_SIZE = 10000;
+	public static final Color4I HIGHLIGHT_DEFAULT_COLOUR = Color4I.WHITE.withAlpha(110);
+	public static final short HIGHLIGHT_DEFAULT_FILL_OPACITY = 20;
 	private static final ITextComponent CACHED_DISPLAY_TEXTCOMPONENT = new TextComponentString("(Cached)").setStyle(new Style()
 			.setColor(TextFormatting.DARK_GRAY)
 			.setItalic(true)
@@ -52,6 +53,15 @@ public class MinimapIntegrationHelper {
 			.setColor(TextFormatting.DARK_GRAY)
 			.setItalic(true)
 	);
+	private static final Style NO_POP_OR_INDUSTRY_STYLE = new Style().setColor(TextFormatting.DARK_GRAY);
+
+	private static final Map<BlockPos, PTEDisplay> PTE_DISPLAYS = new ConcurrentHashMap<>();
+	private static final Map<ChunkPos, Map<BlockPos, PTEDisplay>> PTE_DISPLAYS_CACHED = new ConcurrentHashMap<>();
+	@SuppressWarnings("UnstableApiUsage")
+	private static final ListMultimap<Vec2i, PTEDisplay> PTE_DISPLAYS_SORTED = MultimapBuilder.hashKeys().arrayListValues().build();
+	private static final int MAX_CACHE_SIZE = 10000;
+
+	private static int cacheSize = 0;
 
 	public static void drawChunkClaim(int claimDrawX, int claimDrawZ, double opacityFactor, CommonStateInfo owner, int cx, int cz, World world) {
 		//fill colour
@@ -84,6 +94,25 @@ public class MinimapIntegrationHelper {
 		if(!chunkCp.equals(otherCp)) {
 			Gui.drawRect(claimDrawX, claimDrawZ+15, claimDrawX+16, claimDrawZ+16, borderColour);
 		}
+	}
+
+	public static void drawRadiusHighlight(int centreChunkX, int centreChunkZ, int radius, int colour, int fillOpacity) {
+		int minBlockX = (centreChunkX - radius) << 4;
+		int minBlockZ = (centreChunkZ - radius) << 4;
+		int maxBlockX = (centreChunkX + radius + 1) << 4;
+		int maxBlockZ = (centreChunkZ + radius + 1) << 4;
+
+		//fill
+		if(fillOpacity > 0) {
+			int fillColour = ColourUtils.colourWithOpacity(colour, fillOpacity);
+			Gui.drawRect(minBlockX+1, minBlockZ+1, maxBlockX-1, maxBlockZ-1, fillColour);
+		}
+
+		//outline
+		Gui.drawRect(minBlockX, minBlockZ+1, minBlockX+1, maxBlockZ, colour);
+		Gui.drawRect(maxBlockX-1, minBlockZ, maxBlockX, maxBlockZ-1, colour);
+		Gui.drawRect(minBlockX, minBlockZ, maxBlockX-1, minBlockZ+1, colour);
+		Gui.drawRect(minBlockX+1, maxBlockZ-1, maxBlockX, maxBlockZ, colour);
 	}
 
 	/**
@@ -196,11 +225,33 @@ public class MinimapIntegrationHelper {
 		}
 
 		if (isControlPointLoaded || hasAnyLabourContributions) {
-			lines.add(" - Working Population: " + workingPopulation + "/" + population
+			//population
+			String workingPopString = " - Working Population: " + workingPopulation + "/" + population;
+			if(population == 0) {
+				workingPopString = new TextComponentString(workingPopString).setStyle(
+						NO_POP_OR_INDUSTRY_STYLE
+				).getFormattedText();
+			}
+
+			lines.add(workingPopString
 					+ (usedCachedPop ? " " + CACHED_DISPLAY_TEXTCOMPONENT.getFormattedText()
 					: (sure ? "" : " " + UNSURE_TEXTCOMPONENT.getFormattedText()))
 			);
-			lines.add(" - Industrial Output: " + industrialOutput + "/" + maxIndustrialOutput
+
+			//industrial output
+			String industrialOutputString = " - Industrial Output: " + industrialOutput + "/" + maxIndustrialOutput;
+			if(maxIndustrialOutput == 0) {
+				industrialOutputString = new TextComponentString(industrialOutputString).setStyle(
+						NO_POP_OR_INDUSTRY_STYLE
+				).getFormattedText();
+			}
+			else if(industrialOutput < maxIndustrialOutput) {
+				industrialOutputString = new TextComponentString(industrialOutputString).setStyle(LabourConsumer
+						.LABOUR_NOT_ENOUGH_STYLE
+				).getFormattedText();
+			}
+
+			lines.add(industrialOutputString
 					+ (usedCachedIndustry ? " " + CACHED_DISPLAY_TEXTCOMPONENT.getFormattedText()
 					: (sure ? "" : " " + UNSURE_TEXTCOMPONENT.getFormattedText()))
 			);
@@ -211,7 +262,7 @@ public class MinimapIntegrationHelper {
 
 	public static void updatePTEDisplays(Map<BlockPos, PTEDisplay> newDisplays, int cacheClearChunkDistance) {
 		long startTime = System.nanoTime();
-		cacheCurrentPTEDisplays(newDisplays, cacheClearChunkDistance);
+		cacheCurrentPTEDisplays(cacheClearChunkDistance);
 		//replace current displays with new displays
 		PTE_DISPLAYS.clear();
 		PTE_DISPLAYS.putAll(newDisplays);
@@ -240,7 +291,7 @@ public class MinimapIntegrationHelper {
 	/**
 	 * Caches current PTE Displays and removes any cached displays which share a chunk with the new displays.
 	 */
-	private static void cacheCurrentPTEDisplays(Map<BlockPos, PTEDisplay> newDisplays, int cacheClearChunkDistance) {
+	private static void cacheCurrentPTEDisplays(int cacheClearChunkDistance) {
 		ChunkPos playerPos = new ChunkPos(Minecraft.getMinecraft().player.getPosition());
 		for (Map.Entry<BlockPos, PTEDisplay> kvp : PTE_DISPLAYS.entrySet()) {
 			ChunkPos displayChunk = new ChunkPos(kvp.getKey());

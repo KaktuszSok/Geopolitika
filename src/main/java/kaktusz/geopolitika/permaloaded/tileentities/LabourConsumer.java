@@ -1,18 +1,33 @@
 package kaktusz.geopolitika.permaloaded.tileentities;
 
+import kaktusz.geopolitika.integration.PTEDisplay;
 import kaktusz.geopolitika.states.StatesManager;
 import kaktusz.geopolitika.util.ParticleUtils;
 import kaktusz.geopolitika.util.PrecalcSpiral;
+import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumParticleTypes;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
+import net.minecraft.util.text.Style;
+import net.minecraft.util.text.TextComponentString;
+import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.WorldServer;
 
 import java.util.Iterator;
 import java.util.concurrent.ThreadLocalRandom;
 
 public interface LabourConsumer extends PTEInterface {
+
+	String NO_LABOUR_TEXT = "\n" + new TextComponentString(" - Labour consumed: 0.0/0.0").setStyle(new Style()
+			.setColor(TextFormatting.DARK_GRAY)
+	).getFormattedText();
+	Style LABOUR_NOT_ENOUGH_STYLE = new Style().setColor(TextFormatting.RED);
+
+	double getLabourPerTick();
 	int getLabourTier();
+
+	double getLabourReceived();
+	void addLabourReceived(double amount);
 
 	/**
 	 * How far the consumer should search for suppliers (in chunks, 0 = only own chunk)
@@ -32,23 +47,57 @@ public interface LabourConsumer extends PTEInterface {
 		));
 	}
 
+	default PTEDisplay createBasicPTEDisplay(ItemStack icon, String heading) {
+		PTEDisplay display = new PTEDisplay(icon);
+		display.hoverText = heading + getLabourHoverText();
+
+		boolean enoughLabour = getLabourReceived() >= getLabourPerTick();
+		display.labourContribution = enoughLabour ? (float) -getLabourReceived() : 0;
+		display.idealLabourContribution = (float) -getLabourPerTick();
+
+		if(!enoughLabour) {
+			display.tint = 0x55FF0000;
+			display.zOrder = 2;
+		}
+
+		return display;
+	}
+
+	default String getLabourHoverText() {
+		if(getLabourPerTick() == 0) {
+			return NO_LABOUR_TEXT;
+		}
+		String str = " - Labour consumed: " + getLabourReceived() + "/" + getLabourPerTick();
+		if(getLabourReceived() < getLabourPerTick()) {
+			str = new TextComponentString(str).setStyle(LABOUR_NOT_ENOUGH_STYLE).getFormattedText();
+		}
+
+		return "\n" + str;
+	}
+
 	/**
-	 * Consumes labour from nearby suppliers.
-	 * @param amount Amount of labour in total which we need to consume.
-	 * @return The amount of labour successfully received.
+	 * Consumes labour from nearby suppliers in a single chunk dictated by the step.
+	 * @param step Corresponds to which chunk in our labour spiral we are looking for suppliers in
+	 * @return True if done, i.e. we have consumed enough labour or we have reached the end of the labour spiral
 	 */
-	default double consumeLabour(double amount) {
+	default boolean consumeLabour(int step) {
+		PrecalcSpiral spiral = getOrCreateCachedSpiral();
+		if(step >= spiral.length || getLabourReceived() >= getLabourPerTick())
+			return true;
+
 		PermaloadedTileEntity permaTE = getPermaTileEntity();
 
-		double received = 0;
-		PrecalcSpiral spiral = getOrCreateCachedSpiral();
-		Iterator<LabourSupplier> suppliers = permaTE.getSave().iterateTileEntitiesOutwards(
-				LabourSupplier.class, new ChunkPos(permaTE.getPosition()), spiral, StatesManager.getChunkOwner(permaTE.getPosition(), permaTE.getWorld()));
+		ChunkPos chunk = spiral.positions[step];
+		Iterator<LabourSupplier> suppliers = permaTE.getSave()
+				.findTileEntitiesByInterface(LabourSupplier.class, chunk).iterator();
 
-		while (received < amount && suppliers.hasNext()) {
-			received += suppliers.next().requestLabour(amount-received, getLabourTier());
+		while (suppliers.hasNext() && getLabourReceived() < getLabourPerTick()) {
+			double received = suppliers.next()
+					.requestLabour(getLabourPerTick()-getLabourReceived(), getLabourTier());
+			addLabourReceived(received);
 		}
-		return received;
+
+		return step == spiral.length - 1 || getLabourReceived() >= getLabourPerTick();
 	}
 
 	default void spawnLabourNotReceivedParticles() {
