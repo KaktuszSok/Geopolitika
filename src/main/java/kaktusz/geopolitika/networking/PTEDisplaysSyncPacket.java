@@ -76,8 +76,6 @@ public class PTEDisplaysSyncPacket implements IMessage {
 
 	@Override
 	public void toBytes(ByteBuf buf) {
-		int start = buf.writerIndex();
-
 		//generate LUTs
 		List<ItemStack> stacksLUT = new ArrayList<>();
 		BiMap<String, Integer> stringsLUT = HashBiMap.create();

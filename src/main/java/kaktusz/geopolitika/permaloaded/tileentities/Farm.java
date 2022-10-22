@@ -1,8 +1,11 @@
 package kaktusz.geopolitika.permaloaded.tileentities;
 
+import com.feed_the_beast.ftblib.lib.data.ForgePlayer;
 import com.feed_the_beast.ftblib.lib.icon.Color4I;
+import kaktusz.geopolitika.Geopolitika;
 import kaktusz.geopolitika.blocks.BlockFarm;
 import kaktusz.geopolitika.integration.PTEDisplay;
+import kaktusz.geopolitika.states.StatesManager;
 import kaktusz.geopolitika.util.PermissionUtils;
 import kaktusz.geopolitika.util.PrecalcSpiral;
 import net.minecraft.block.Block;
@@ -16,7 +19,10 @@ import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.World;
+import net.minecraft.world.WorldServer;
 import net.minecraftforge.common.IPlantable;
+import net.minecraftforge.common.util.FakePlayer;
+import net.minecraftforge.common.util.FakePlayerFactory;
 
 public class Farm extends ExclusiveZoneTE implements LabourConsumer, DisplayablePTE {
 	public static final int ID = 1000;
@@ -117,10 +123,8 @@ public class Farm extends ExclusiveZoneTE implements LabourConsumer, Displayable
 		}
 		tickCooldown = 20;
 
-		long startTime = System.nanoTime();
 		tillChunk(spiral.positions[spiralIdx]);
 		spiralIdx = (spiralIdx+1) % spiral.length;
-		long elapsed = System.nanoTime() - startTime;
 	}
 
 	private void tillChunk(ChunkPos chunk) {
@@ -161,11 +165,12 @@ public class Farm extends ExclusiveZoneTE implements LabourConsumer, Displayable
 
 					IBlockState state = world.getBlockState(pos);
 					Block block = state.getBlock();
+					FakePlayer permsPlayer = PermissionUtils.getFakePlayerFromOwner(world, getPosition());
 					if(block.isReplaceable(world, pos)) {
 						if(state.getMaterial().isLiquid()) {
 							break;
 						}
-						if(!PermissionUtils.canBreakBlock(pos, world))
+						if(!PermissionUtils.canBreakBlock(pos, world, permsPlayer))
 							break;
 						world.setBlockToAir(pos);
 						continue;
@@ -173,21 +178,21 @@ public class Farm extends ExclusiveZoneTE implements LabourConsumer, Displayable
 
 					if(doFarmland && (block == Blocks.GRASS || block == Blocks.DIRT)) {
 						if(x % 8 == 4 && z % 8 == 4) {
-							if(!PermissionUtils.canBreakBlock(pos, world) || !PermissionUtils.canPlaceBlock(pos, world, EnumFacing.DOWN))
+							if(!PermissionUtils.canBreakBlock(pos, world, permsPlayer) || !PermissionUtils.canPlaceBlock(pos, world, EnumFacing.DOWN, permsPlayer))
 								break;
 							world.setBlockState(pos, Blocks.WATER.getDefaultState(), 2);
 							break;
 						} else {
 							state = Blocks.FARMLAND.getDefaultState();
 							block = state.getBlock();
-							if(!PermissionUtils.canBreakBlock(pos, world) || !PermissionUtils.canPlaceBlock(pos, world, EnumFacing.DOWN))
+							if(!PermissionUtils.canBreakBlock(pos, world, permsPlayer) || !PermissionUtils.canPlaceBlock(pos, world, EnumFacing.DOWN, permsPlayer))
 								break;
 							world.setBlockState(pos, state, 2);
 						}
 					}
 
 					if(block.canSustainPlant(state, world, pos, EnumFacing.UP, plantable)) { //try plant a plant
-						if(!PermissionUtils.canPlaceBlock(pos, world, EnumFacing.DOWN))
+						if(!PermissionUtils.canPlaceBlock(pos, world, EnumFacing.DOWN, permsPlayer))
 							break;
 						world.setBlockState(plantPos, plantable.getPlant(world, plantPos), 2);
 					}

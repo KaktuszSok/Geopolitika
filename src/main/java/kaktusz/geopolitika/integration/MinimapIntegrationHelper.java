@@ -59,7 +59,7 @@ public class MinimapIntegrationHelper {
 	private static final Map<ChunkPos, Map<BlockPos, PTEDisplay>> PTE_DISPLAYS_CACHED = new ConcurrentHashMap<>();
 	@SuppressWarnings("UnstableApiUsage")
 	private static final ListMultimap<Vec2i, PTEDisplay> PTE_DISPLAYS_SORTED = MultimapBuilder.hashKeys().arrayListValues().build();
-	private static final int MAX_CACHE_SIZE = 10000;
+	private static final int MAX_CACHE_SIZE = ModConfig.maxMapDisplaysCached; //TODO batch rendering?? so we can increase this number
 
 	private static int cacheSize = 0;
 
@@ -297,13 +297,14 @@ public class MinimapIntegrationHelper {
 			ChunkPos displayChunk = new ChunkPos(kvp.getKey());
 			int dx = Math.abs(playerPos.x - displayChunk.x);
 			int dz = Math.abs(playerPos.z - displayChunk.z);
-			if(dx <= cacheClearChunkDistance || dz <= cacheClearChunkDistance)
+			if(dx <= cacheClearChunkDistance && dz <= cacheClearChunkDistance)
 				continue; //don't cache overwritten chunks
 
 			kvp.getValue().setCached();
-			PTE_DISPLAYS_CACHED.computeIfAbsent(displayChunk, cp -> new ConcurrentHashMap<>())
+			Object overwritten = PTE_DISPLAYS_CACHED.computeIfAbsent(displayChunk, cp -> new ConcurrentHashMap<>())
 					.put(kvp.getKey(), kvp.getValue());
-			cacheSize++;
+			if(overwritten == null)
+				cacheSize++;
 		}
 
 		//un-cache any overwritten chunks

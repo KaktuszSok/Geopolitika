@@ -8,9 +8,6 @@ import com.feed_the_beast.ftblib.lib.math.ChunkDimPos;
 import com.feed_the_beast.ftbutilities.data.ClaimedChunk;
 import com.feed_the_beast.ftbutilities.data.ClaimedChunks;
 import com.feed_the_beast.ftbutilities.events.chunks.ChunkModifiedEvent;
-import gregtech.api.GregTechAPI;
-import gregtech.api.capability.GregtechCapabilities;
-import gregtech.api.capability.GregtechTileCapabilities;
 import kaktusz.geopolitika.blocks.BlockControlPoint;
 import kaktusz.geopolitika.integration.GTCEuIntegration;
 import kaktusz.geopolitika.permaloaded.PermaloadedSavedData;
@@ -18,11 +15,12 @@ import kaktusz.geopolitika.permaloaded.projectiles.ProjectileManager;
 import kaktusz.geopolitika.permaloaded.tileentities.LabourMachine;
 import kaktusz.geopolitika.permaloaded.tileentities.LabourMachineFE;
 import kaktusz.geopolitika.permaloaded.tileentities.LabourMachineGT;
-import kaktusz.geopolitika.states.StatesManager;
 import kaktusz.geopolitika.states.ChunksSavedData;
+import kaktusz.geopolitika.states.StatesManager;
 import kaktusz.geopolitika.tileentities.TileEntityControlPoint;
 import kaktusz.geopolitika.util.MessageUtils;
 import net.minecraft.block.Block;
+import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.tileentity.TileEntity;
@@ -33,9 +31,9 @@ import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
+import net.minecraft.world.chunk.storage.ExtendedBlockStorage;
 import net.minecraftforge.common.ForgeHooks;
 import net.minecraftforge.energy.CapabilityEnergy;
-import net.minecraftforge.energy.IEnergyStorage;
 import net.minecraftforge.event.ServerChatEvent;
 import net.minecraftforge.event.entity.EntityEvent;
 import net.minecraftforge.event.world.BlockEvent;
@@ -73,13 +71,12 @@ public class GameplayEventHandler {
 			}
 		}
 
-		//TODO also detect machines in chunks when they load/randomly check blocks in loaded chunks?
 		if(block.hasTileEntity(e.getPlacedBlock())) {
 			TileEntity te = e.getWorld().getTileEntity(e.getPos());
 			if(te == null)
 				return;
 
-			handleMachinePlaced(e, te);
+			handleTileEntityPlaced(e.getWorld(), e.getPos(), te);
 		}
 	}
 
@@ -98,23 +95,23 @@ public class GameplayEventHandler {
 			if(te == null)
 				return;
 
-			handleMachineRemoved(e.getWorld(), e.getPos(), te);
+			handleTileEntityRemoved(e.getWorld(), e.getPos(), te);
 		}
 	}
 
-	private static void handleMachinePlaced(BlockEvent.EntityPlaceEvent e, TileEntity te) {
+	private static void handleTileEntityPlaced(World world, BlockPos where, TileEntity te) {
 		LabourMachine<?> pte = null;
 		if(te.hasCapability(CapabilityEnergy.ENERGY, null)) {
-			pte = new LabourMachineFE(e.getPos());
+			pte = new LabourMachineFE(where);
 		}
 		else if(GTCEuIntegration.hasTileEntityGregtechEnergyCapability(te)) {
-			pte = new LabourMachineGT(e.getPos());
+			pte = new LabourMachineGT(where);
 		}
 
 		if(pte == null) //no machine found
 			return;
 
-		PermaloadedSavedData.get(e.getWorld()).addTileEntity(pte);
+		PermaloadedSavedData.get(world).addTileEntity(pte);
 
 		//set name (must be done after adding to world)
 		ITextComponent displayName = te.getDisplayName();
@@ -123,7 +120,7 @@ public class GameplayEventHandler {
 		}
 	}
 
-	private static void handleMachineRemoved(World world, BlockPos where, TileEntity te) {
+	private static void handleTileEntityRemoved(World world, BlockPos where, TileEntity te) {
 		if(PermaloadedSavedData.get(world).getTileEntityAt(where) instanceof LabourMachine<?>)
 		{
 			PermaloadedSavedData.get(world).removeTileEntityAt(where);
@@ -211,6 +208,7 @@ public class GameplayEventHandler {
 		if(e.getWorld().isRemote)
 			return;
 
+		checkChunkForMachines(e);
 		PermaloadedSavedData.get(e.getWorld()).onChunkLoaded(e.getChunk());
 	}
 
@@ -222,6 +220,19 @@ public class GameplayEventHandler {
 		if(e.phase == TickEvent.Phase.START) {
 			PermaloadedSavedData.get(e.world).onWorldTick();
 			ProjectileManager.get(e.world).tick();
+		}
+	}
+
+	private static void checkChunkForMachines(ChunkEvent.Load e) {
+		Map<BlockPos, TileEntity> tileEntityMap = e.getChunk().getTileEntityMap();
+		final World world = e.getWorld();
+		for (Map.Entry<BlockPos, TileEntity> kvp : tileEntityMap.entrySet()) {
+			TileEntity te = kvp.getValue();
+			//ensure that the machine PTE is present (or the tile entity should not have a labour machine)
+			PermaloadedSavedData permaSave = PermaloadedSavedData.get(world);
+			if (!(permaSave.getTileEntityAt(kvp.getKey()) instanceof LabourMachine<?>)) {
+				handleTileEntityPlaced(world, kvp.getKey(), te);
+			}
 		}
 	}
 

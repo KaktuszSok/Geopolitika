@@ -2,6 +2,7 @@ package kaktusz.geopolitika.init;
 
 import kaktusz.geopolitika.Geopolitika;
 import kaktusz.geopolitika.blocks.*;
+import kaktusz.geopolitika.permaloaded.tileentities.CreativeLabourSupplier;
 import kaktusz.geopolitika.permaloaded.tileentities.House;
 import net.minecraft.block.Block;
 import net.minecraft.block.material.MapColor;
@@ -22,6 +23,7 @@ public class ModBlocks {
 	public static final BlockMine MINE = registerPTEBlock(new BlockMine("mine", Material.ROCK, Geopolitika.CREATIVE_TAB));
 
 	public static final BlockPermaBase<House> HOUSE = registerPTEBlock(new BlockBuilding<>("house", Material.WOOD, Geopolitika.CREATIVE_TAB, House::new));
+	public static final BlockPermaBase<CreativeLabourSupplier> CREATIVE_LABOUR_SUPPLIER = registerPTEBlock(new BlockCreativeLabourSupplier("creative_labour_supplier", Material.PORTAL, Geopolitika.CREATIVE_TAB));
 
 	public static final BlockVehicleWorkshop VEHICLE_WORKSHOP = new BlockVehicleWorkshop("vehicle_workshop", Material.IRON, Geopolitika.CREATIVE_TAB,
 			2, 3, 7);

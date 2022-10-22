@@ -62,7 +62,6 @@ public abstract class LabourMachine<T> extends PermaloadedTileEntity implements 
 			T cap = te.getCapability(getRequiredCapability(), null);
 			assert cap != null;
 			onLabourNotReceived(te, cap);
-			Geopolitika.logger.info("Labour not received for " + this.toString() + " at " + getPosition());
 			spawnLabourNotReceivedParticles();
 		}
 	}
@@ -77,6 +76,10 @@ public abstract class LabourMachine<T> extends PermaloadedTileEntity implements 
 	}
 
 	public double getLabourPerTick() {
+		if(!StatesManager.getChunkOwner(getPosition(), getWorld()).isValid()) {
+			return 0;
+		}
+
 		return 0.5D;
 	}
 

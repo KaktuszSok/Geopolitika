@@ -38,4 +38,8 @@ public class ModConfig {
 	@Config.Comment("Duration of the glow effect given to revealed occupiers.")
 	@Config.RangeInt(min=0)
 	public static int highlightOccupiersDuration = 15;
+
+	@Config.Comment("How many display icons can be kept up on the world map after leaving their vicinity. Reduce if the map screen is lagging.")
+	@Config.RangeInt(min=0)
+	public static int maxMapDisplaysCached = 1000;
 }

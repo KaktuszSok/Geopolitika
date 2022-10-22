@@ -1,9 +1,11 @@
 package kaktusz.geopolitika.permaloaded.tileentities;
 
+import com.feed_the_beast.ftblib.lib.icon.Color4I;
 import kaktusz.geopolitika.blocks.BlockMine;
 import kaktusz.geopolitika.integration.PTEDisplay;
 import kaktusz.geopolitika.util.MathsUtils;
 import kaktusz.geopolitika.util.PermissionUtils;
+import kaktusz.geopolitika.util.PrecalcSpiral;
 import net.minecraft.block.BlockStairs;
 import net.minecraft.block.BlockStone;
 import net.minecraft.block.BlockStoneSlab;
@@ -19,12 +21,18 @@ import org.apache.commons.lang3.RandomUtils;
 
 import java.util.Random;
 
-public class Mine extends ExclusiveZoneTE implements DisplayablePTE {
+public class Mine extends ExclusiveZoneTE implements LabourConsumer, DisplayablePTE {
 	public static final int ID = 1001;
 	public static final int CHUNK_RADIUS = 3;
 	private static final boolean SMOOTH_CORNERS = false;
+	private static final int Y_STEP_PER_CHUNK = 6;
 	private static final int BLOCKS_PER_TICK = 50;
 	private static final Random RNG = new Random();
+	private static final Color4I WORK_RADIUS_COLOUR = Color4I.rgba(106, 88, 133, 222);
+	private static final short WORK_RADIUS_FILL_OPACITY = 80;
+
+	private PrecalcSpiral labourSpiral;
+	private double labourReceived = 0;
 
 	public Mine(BlockPos position) {
 		super(position);
@@ -47,6 +55,11 @@ public class Mine extends ExclusiveZoneTE implements DisplayablePTE {
 
 	@Override
 	public void onTick() {
+		if(getLabourReceived() < getLabourPerTick()) {
+			spawnLabourNotReceivedParticles();
+			return;
+		}
+
 		for (int i = 0; i < BLOCKS_PER_TICK; i++) {
 			tryMineRandom();
 		}
@@ -91,17 +104,17 @@ public class Mine extends ExclusiveZoneTE implements DisplayablePTE {
 
 		BlockPos chosenBlock = blockcastDown(topBlock);
 		if(shouldDestroyBlock(chosenBlock)) {
-			if(!PermissionUtils.canBreakBlock(chosenBlock, getWorld())) {
+			if(!PermissionUtils.canBreakBlock(chosenBlock, getWorld(), PermissionUtils.getFakePlayerFromOwner(getWorld(), getPosition()))) {
 				return;
 			}
 			getWorld().setBlockState(chosenBlock, Blocks.AIR.getDefaultState(), 2);
 		} else {
 			//replace stone with random blocks
 			if(getWorld().getBlockState(chosenBlock).getBlock() == Blocks.STONE) {
-				RNG.setSeed(chosenBlock.toString().hashCode());
+				RNG.setSeed(chosenBlock.toString().hashCode()); //TODO inefficient, but normal hashcode has obvious patterns
 				int target = RNG.nextInt(6);
 				//0 = keep, 1-5 = replace
-				if(target == 0 || !PermissionUtils.canPlaceBlock(chosenBlock, getWorld(), EnumFacing.DOWN)) {
+				if(target == 0 || !PermissionUtils.canPlaceBlock(chosenBlock, getWorld(), EnumFacing.DOWN, PermissionUtils.getFakePlayerFromOwner(getWorld(), getPosition()))) {
 					return;
 				}
 				IBlockState targetState;
@@ -137,8 +150,24 @@ public class Mine extends ExclusiveZoneTE implements DisplayablePTE {
 	}
 
 	private boolean shouldDestroyBlock(BlockPos pos) {
-		IBlockState state = getWorld().getBlockState(pos);
-		return state.getMaterial().isLiquid() || state.getMaterial().isToolNotRequired();
+		//check if its above our floor
+		int floorY = getPosition().getY() - 1 - Y_STEP_PER_CHUNK;
+		int chunkDx = Math.abs((pos.getX() >> 4) - (getPosition().getX() >> 4));
+		int chunkDz = Math.abs((pos.getZ() >> 4) - (getPosition().getZ() >> 4));
+		int chunksToEdge = CHUNK_RADIUS - Math.max(chunkDx, chunkDz);
+		floorY -= Math.min(chunksToEdge, CHUNK_RADIUS-1)*Y_STEP_PER_CHUNK;
+
+		if(pos.getY() > floorY)
+			return true;
+
+//		//if not, check if its soft or liquid
+//		IBlockState state = getWorld().getBlockState(pos);
+//		boolean soft = state.getMaterial().isLiquid() || state.getMaterial().isToolNotRequired();
+//		if(soft)
+//			return true;
+
+		//otherwise no
+		return false;
 	}
 
 	private BlockPos blockcastDown(BlockPos start) {
@@ -155,13 +184,51 @@ public class Mine extends ExclusiveZoneTE implements DisplayablePTE {
 
 	@Override
 	public PTEDisplay getDisplay() {
-		PTEDisplay disp = new PTEDisplay(new ItemStack(Items.IRON_PICKAXE));
-		disp.hoverText = "Miiine...\nMiiiiiiineee.....";
+		PTEDisplay disp = createBasicPTEDisplay(new ItemStack(Items.IRON_PICKAXE), "Mine");
+
+		disp.addRadiusHighlight(getSearchRadius());
+		disp.addRadiusHighlight(getRadius(), WORK_RADIUS_COLOUR.rgba(), WORK_RADIUS_FILL_OPACITY);
+
 		return disp;
 	}
 
 	@Override
 	public PermaloadedTileEntity getPermaTileEntity() {
-		return null;
+		return this;
+	}
+
+	@Override
+	public double getLabourPerTick() {
+		return 24;
+	}
+
+	@Override
+	public int getLabourTier() {
+		return 1;
+	}
+
+	@Override
+	public double getLabourReceived() {
+		return labourReceived;
+	}
+
+	@Override
+	public void addLabourReceived(double amount) {
+		labourReceived += amount;
+	}
+
+	@Override
+	public int getSearchRadius() {
+		return 4 + CHUNK_RADIUS;
+	}
+
+	@Override
+	public PrecalcSpiral getCachedSpiral() {
+		return labourSpiral;
+	}
+
+	@Override
+	public PrecalcSpiral setCachedSpiral(PrecalcSpiral spiral) {
+		return labourSpiral = spiral;
 	}
 }

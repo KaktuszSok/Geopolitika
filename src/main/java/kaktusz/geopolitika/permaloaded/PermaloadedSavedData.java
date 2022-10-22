@@ -1,12 +1,14 @@
 package kaktusz.geopolitika.permaloaded;
 
 import com.feed_the_beast.ftblib.lib.data.ForgeTeam;
+import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.MultimapBuilder;
 import kaktusz.geopolitika.Geopolitika;
 import kaktusz.geopolitika.blocks.BlockPermaBase;
 import kaktusz.geopolitika.permaloaded.tileentities.*;
 import kaktusz.geopolitika.states.StatesManager;
+import kaktusz.geopolitika.util.Key3;
 import kaktusz.geopolitika.util.PrecalcSpiral;
 import mcp.MethodsReturnNonnullByDefault;
 import net.minecraft.nbt.NBTBase;
@@ -36,6 +38,7 @@ public class PermaloadedSavedData extends WorldSavedData {
 		entityFactory.put(LabourMachineFE.ID, LabourMachineFE::new);
 		entityFactory.putIfAbsent(ExternalModPTE.ID_MACHINE_GT, bp -> new ExternalModPTE(bp, ExternalModPTE.ID_MACHINE_GT));
 	}
+	private static final int LABOUR_TICK_RATE = 5; //a labour tick happens every N ticks
 
 	/**
 	 * Register a permaloaded tile entity block and its permaloaded tile entity.
@@ -49,8 +52,12 @@ public class PermaloadedSavedData extends WorldSavedData {
 	private World world;
 	@SuppressWarnings("UnstableApiUsage")
 	private final Multimap<ChunkPos, PermaloadedTileEntity> chunkTileEntities = MultimapBuilder.hashKeys().hashSetValues().build();
-	private final Set<LabourConsumer> labourConsumers = new HashSet<>();
+	@SuppressWarnings("UnstableApiUsage")
+	private final Multimap<ChunkPos, LabourSupplier> labourSuppliers = MultimapBuilder.hashKeys().hashSetValues().build();
+	@SuppressWarnings("UnstableApiUsage")
+	private final Multimap<ChunkPos, LabourConsumer> labourConsumers = MultimapBuilder.hashKeys().hashSetValues().build();
 	private final Queue<Runnable> actionsAfterTick = new LinkedList<>();
+	private int ticker = 0;
 
 	public PermaloadedSavedData() {
 		super(DATA_NAME);
@@ -233,9 +240,13 @@ public class PermaloadedSavedData extends WorldSavedData {
 	 */
 	private <T extends PermaloadedTileEntity> T addTileEntity(T tileEntity, boolean isNew) {
 		tileEntity.setSave(this);
-		chunkTileEntities.put(new ChunkPos(tileEntity.getPosition()), tileEntity);
+		ChunkPos chunkPos = new ChunkPos(tileEntity.getPosition());
+		chunkTileEntities.put(chunkPos, tileEntity);
 		if(tileEntity instanceof LabourConsumer) {
-			labourConsumers.add((LabourConsumer) tileEntity);
+			labourConsumers.put(chunkPos, (LabourConsumer) tileEntity);
+		}
+		if(tileEntity instanceof LabourSupplier) {
+			labourSuppliers.put(chunkPos, (LabourSupplier) tileEntity);
 		}
 		if(isNew)
 			tileEntity.onAdded();
@@ -246,9 +257,13 @@ public class PermaloadedSavedData extends WorldSavedData {
 	}
 
 	public boolean removeTileEntity(PermaloadedTileEntity tileEntity) {
-		boolean success = chunkTileEntities.remove(new ChunkPos(tileEntity.getPosition()), tileEntity);
+		ChunkPos chunkPos = new ChunkPos(tileEntity.getPosition());
+		boolean success = chunkTileEntities.remove(chunkPos, tileEntity);
 		if(tileEntity instanceof LabourConsumer) {
-			labourConsumers.remove(tileEntity);
+			labourConsumers.remove(chunkPos, tileEntity);
+		}
+		if(tileEntity instanceof LabourSupplier) {
+			labourSuppliers.remove(chunkPos, tileEntity);
 		}
 		tileEntity.onRemoved();
 		markDirty();
@@ -282,7 +297,7 @@ public class PermaloadedSavedData extends WorldSavedData {
 	public void onChunkLoaded(Chunk chunk) {
 		for (PermaloadedTileEntity tileEntity : chunkTileEntities.get(chunk.getPos()).toArray(arrayCache)) {
 			if(tileEntity == null)
-				break;
+				continue;
 
 			if(!tileEntity.verify()) {
 				removeTileEntity(tileEntity);
@@ -292,17 +307,13 @@ public class PermaloadedSavedData extends WorldSavedData {
 
 	public void onWorldTick() {
 		//process labour
-		int step = 0;
-		labourConsumers.forEach(x -> x.addLabourReceived(-x.getLabourReceived())); //reset labour received to 0 for all consumers
-		Set<LabourConsumer> needLabour = new HashSet<>(labourConsumers);
-		while (!needLabour.isEmpty()) {
-			final int stepImmutable = step;
-			needLabour.removeIf(x -> x.consumeLabour(stepImmutable));
-			step++;
+		if(ticker % LABOUR_TICK_RATE == 0) {
+			labourTick();
 		}
 
 		//tick entities
-		for (PermaloadedTileEntity te : chunkTileEntities.values()) {
+		final PermaloadedTileEntity[] tes = chunkTileEntities.values().toArray(new PermaloadedTileEntity[0]);
+		for (PermaloadedTileEntity te : tes) {
 			te.onTick();
 		}
 
@@ -310,6 +321,87 @@ public class PermaloadedSavedData extends WorldSavedData {
 		while (!actionsAfterTick.isEmpty()) {
 			actionsAfterTick.poll().run();
 		}
+
+		ticker++;
+	}
+
+	private void labourTick() {
+		//tick suppliers
+		for (LabourSupplier supplier : labourSuppliers.values()) {
+			supplier.onLabourTick();
+		}
+
+		//generate chunk-based maps
+		//chunkPos, tier, radius -> labour required
+		Map<Key3<ChunkPos, Integer, Integer>, Double> labourReqMap = new HashMap<>();
+		@SuppressWarnings("UnstableApiUsage")
+		Multimap<Key3<ChunkPos, Integer, Integer>, LabourConsumer> requestingConsumersMap = MultimapBuilder.hashKeys().hashSetValues().build();
+		HashBasedTable<ChunkPos, Integer, PrecalcSpiral> spirals = HashBasedTable.create();
+		for (Map.Entry<ChunkPos, LabourConsumer> kvp : labourConsumers.entries()) {
+			Key3<ChunkPos, Integer, Integer> compoundKey = new Key3<>(kvp.getKey(), kvp.getValue().getLabourTier(), kvp.getValue().getSearchRadius());
+			kvp.getValue().addLabourReceived(-kvp.getValue().getLabourReceived()); //clear consumer's "stored" labour
+
+			double req = labourReqMap.getOrDefault(compoundKey, 0.0); //get current labour required
+			//add labour requirement to map
+			req += kvp.getValue().getLabourPerTick();
+			labourReqMap.put(compoundKey, req);
+			requestingConsumersMap.put(compoundKey, kvp.getValue());
+			if(!spirals.contains(compoundKey.a, compoundKey.c)) {
+				int length = ((2*compoundKey.c)+1)*((2*compoundKey.c)+1);
+				spirals.put(compoundKey.a, compoundKey.c, new PrecalcSpiral(length, compoundKey.a));
+			}
+		}
+
+		//give labour to chunks
+		int step = 0;
+		Map<Key3<ChunkPos, Integer, Integer>, Double> labourNeededMap = new HashMap<>(labourReqMap);
+		Set<Key3<ChunkPos, Integer, Integer>> needLabour = new HashSet<>(labourNeededMap.keySet());
+		while (!needLabour.isEmpty()) {
+			final int stepImmutable = step;
+			needLabour.removeIf(k3 -> {
+				PrecalcSpiral spiral = spirals.get(k3.a, k3.c);
+				if(stepImmutable >= spiral.length)
+					return true; //remove since we have reached the end of the spiral
+
+				double needed = labourNeededMap.get(k3);
+				double received = consumeLabourInChunk(spiral.positions[stepImmutable], needed, k3.b);
+				needed -= received;
+				labourNeededMap.put(k3, needed); //update labour needed map with new (lower) value
+
+				return needed <= 0; //remove if we got all the labour we needed
+			});
+			step++;
+		}
+
+		//distribute labour in chunks to their constituent consumers
+		for (Map.Entry<Key3<ChunkPos, Integer, Integer>, Double> kvp : labourReqMap.entrySet()) {
+			double labourReceived = kvp.getValue() - labourNeededMap.get(kvp.getKey());
+
+			for (LabourConsumer labourConsumer : requestingConsumersMap.get(kvp.getKey())) {
+				if(labourReceived <= 0)
+					break;
+
+				double labourForConsumer = Math.min(labourReceived, labourConsumer.getLabourPerTick());
+				labourConsumer.addLabourReceived(labourForConsumer);
+				labourReceived -= labourForConsumer;
+			}
+		}
+	}
+
+	/**
+	 * Consumes labour from suppliers in a given chunk.
+	 * @return How much labour could be successfully consumed
+	 */
+	private double consumeLabourInChunk(ChunkPos chunk, double amount, int tier) {
+		Iterator<LabourSupplier> suppliers = findTileEntitiesByInterface(LabourSupplier.class, chunk).iterator(); //TODO improve efficiency of this so that it doesn't have to look through all PTEs in the chunk
+
+		double received = 0.0;
+		while (suppliers.hasNext() && received < amount) {
+			received += suppliers.next()
+					.requestLabour(amount-received, tier);
+		}
+
+		return received;
 	}
 
 	@Nullable

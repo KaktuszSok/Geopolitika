@@ -46,8 +46,7 @@ public class House extends BuildingTE<BuildingHouse> implements LabourSupplier, 
 	}
 
 	@Override
-	public void onTick() {
-		super.onTick();
+	public void onLabourTick() {
 		if(supplied)
 		{
 			labourProvidedLastTick = getIdealLabourPerTick() - availableLabour;

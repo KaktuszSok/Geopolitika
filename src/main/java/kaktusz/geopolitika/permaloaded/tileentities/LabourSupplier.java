@@ -37,4 +37,6 @@ public interface LabourSupplier extends PTEInterface {
 		setAvailableLabour(getAvailableLabour() - drained);
 		return drained;
 	}
+
+	void onLabourTick();
 }
