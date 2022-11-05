@@ -3,6 +3,7 @@ package kaktusz.geopolitika.permaloaded.tileentities;
 import gregtech.api.capability.GregtechCapabilities;
 import gregtech.api.capability.IEnergyContainer;
 import kaktusz.geopolitika.Geopolitika;
+import kaktusz.geopolitika.integration.GTCEuIntegration;
 import kaktusz.geopolitika.permaloaded.ExternalModPTE;
 import mcp.MethodsReturnNonnullByDefault;
 import net.minecraft.tileentity.TileEntity;
@@ -36,5 +37,14 @@ public class LabourMachineGT extends LabourMachine<IEnergyContainer> {
 	@Override
 	public int getID() {
 		return ID;
+	}
+
+	@Override
+	public boolean verify() {
+		TileEntity te = getWorld().getTileEntity(getPosition());
+		if(te == null)
+			return false;
+
+		return GTCEuIntegration.isTileEntityGregtechMachine(te);
 	}
 }

@@ -39,6 +39,13 @@ public class ModConfig {
 	@Config.RangeInt(min=0)
 	public static int highlightOccupiersDuration = 15;
 
+	@Config.Comment({
+			"The higher this value, the less likely it is that a chunk will generate resources for a mine.",
+			"Specifically, the chance for a chunk to contain a deposit is 1/N where N is the rarity specified here."
+	})
+	@Config.RangeDouble(min=1.0)
+	public static double chunkResourcesRarity = 100.0;
+
 	@Config.Comment("How many display icons can be kept up on the world map after leaving their vicinity. Reduce if the map screen is lagging.")
 	@Config.RangeInt(min=0)
 	public static int maxMapDisplaysCached = 1000;

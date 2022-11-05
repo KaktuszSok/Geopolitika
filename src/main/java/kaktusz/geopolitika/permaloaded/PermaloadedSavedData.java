@@ -6,6 +6,7 @@ import com.google.common.collect.Multimap;
 import com.google.common.collect.MultimapBuilder;
 import kaktusz.geopolitika.Geopolitika;
 import kaktusz.geopolitika.blocks.BlockPermaBase;
+import kaktusz.geopolitika.init.ModConfig;
 import kaktusz.geopolitika.permaloaded.tileentities.*;
 import kaktusz.geopolitika.states.StatesManager;
 import kaktusz.geopolitika.util.Key3;
@@ -18,9 +19,11 @@ import net.minecraft.nbt.NBTUtil;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.World;
+import net.minecraft.world.biome.Biome;
 import net.minecraft.world.chunk.Chunk;
 import net.minecraft.world.storage.MapStorage;
 import net.minecraft.world.storage.WorldSavedData;
+import net.minecraftforge.common.BiomeDictionary;
 import net.minecraftforge.common.util.Constants;
 
 import javax.annotation.Nullable;
@@ -35,6 +38,8 @@ public class PermaloadedSavedData extends WorldSavedData {
 	public static final Map<Integer, Function<BlockPos, PermaloadedEntity>> entityFactory = new HashMap<>();
 	static {
 		entityFactory.put(ExclusiveZoneMarker.ID, ExclusiveZoneMarker::new);
+		entityFactory.put(ChunkResourcesMarker.ID, ChunkResourcesMarker::new);
+
 		entityFactory.put(LabourMachineFE.ID, LabourMachineFE::new);
 		entityFactory.putIfAbsent(ExternalModPTE.ID_MACHINE_GT, bp -> new ExternalModPTE(bp, ExternalModPTE.ID_MACHINE_GT));
 	}
@@ -62,12 +67,14 @@ public class PermaloadedSavedData extends WorldSavedData {
 	public PermaloadedSavedData() {
 		super(DATA_NAME);
 	}
+	@SuppressWarnings("unused")
 	public PermaloadedSavedData(String name) {
 		super(name);
 	}
 
 	public static PermaloadedSavedData get(World world) {
 		MapStorage storage = world.getMapStorage();
+		assert storage != null;
 		PermaloadedSavedData instance = (PermaloadedSavedData) storage.getOrLoadData(PermaloadedSavedData.class, DATA_NAME);
 
 		if(instance == null) {
@@ -239,6 +246,8 @@ public class PermaloadedSavedData extends WorldSavedData {
 	 * @param isNew Is this a newly placed tile entity or are we just loading a pre-existing one?
 	 */
 	private <T extends PermaloadedTileEntity> T addTileEntity(T tileEntity, boolean isNew) {
+		removeTileEntityAt(tileEntity.getPosition());
+
 		tileEntity.setSave(this);
 		ChunkPos chunkPos = new ChunkPos(tileEntity.getPosition());
 		chunkTileEntities.put(chunkPos, tileEntity);
@@ -252,7 +261,6 @@ public class PermaloadedSavedData extends WorldSavedData {
 			tileEntity.onAdded();
 		tileEntity.onLoaded();
 		markDirty();
-		Geopolitika.logger.info("Added/loaded TE at " + tileEntity.getPosition());
 		return tileEntity;
 	}
 
@@ -267,7 +275,6 @@ public class PermaloadedSavedData extends WorldSavedData {
 		}
 		tileEntity.onRemoved();
 		markDirty();
-		Geopolitika.logger.info("Removed TE at " + tileEntity.getPosition());
 		return success;
 	}
 
@@ -286,6 +293,17 @@ public class PermaloadedSavedData extends WorldSavedData {
 		return false;
 	}
 
+	@Nullable
+	public <T extends PermaloadedTileEntity> T getTileEntityAt(BlockPos pos) {
+		for (PermaloadedTileEntity tileEntity : chunkTileEntities.get(new ChunkPos(pos))) {
+			if(tileEntity.getPosition().equals(pos)) {
+				//noinspection unchecked
+				return (T)tileEntity;
+			}
+		}
+		return null;
+	}
+
 	/**
 	 * Enqueues an action to be called right after we are done ticking the world.
 	 */
@@ -295,6 +313,20 @@ public class PermaloadedSavedData extends WorldSavedData {
 
 	private final PermaloadedTileEntity[] arrayCache = new PermaloadedTileEntity[0];
 	public void onChunkLoaded(Chunk chunk) {
+		//set resources
+		Random rng = chunk.getRandomWithSeed(998);
+		Biome biome = chunk.getBiome(chunk.getPos().getBlock(7, 64, 7), world.getBiomeProvider());
+		if(rng.nextDouble() <= 1.0/ModConfig.chunkResourcesRarity
+				&& !BiomeDictionary.hasType(biome, BiomeDictionary.Type.OCEAN))
+		{
+			ChunkResourcesMarker resources = addTileEntity(new ChunkResourcesMarker(chunk.getPos()));
+			resources.initialise(rng);
+			addTileEntity(resources);
+		} else {
+			removeTileEntityAt(chunk.getPos().getBlock(7, -ChunkResourcesMarker.ID, 7));
+		}
+
+		//verify PTEs
 		for (PermaloadedTileEntity tileEntity : chunkTileEntities.get(chunk.getPos()).toArray(arrayCache)) {
 			if(tileEntity == null)
 				continue;
@@ -363,8 +395,14 @@ public class PermaloadedSavedData extends WorldSavedData {
 				if(stepImmutable >= spiral.length)
 					return true; //remove since we have reached the end of the spiral
 
+				ChunkPos consumeChunk = spiral.positions[stepImmutable];
+				ForgeTeam consumeOwner = StatesManager.getChunkOwner(consumeChunk.x, consumeChunk.z, world);
 				double needed = labourNeededMap.get(k3);
-				double received = consumeLabourInChunk(spiral.positions[stepImmutable], needed, k3.b);
+				if(consumeOwner.isValid() && !StatesManager.getChunkOwner(k3.a.x, k3.a.z, world).equalsTeam(consumeOwner)) { //teams mismatch
+					return needed <= 0;
+				}
+
+				double received = consumeLabourInChunk(consumeChunk, needed, k3.b);
 				needed -= received;
 				labourNeededMap.put(k3, needed); //update labour needed map with new (lower) value
 
@@ -402,16 +440,5 @@ public class PermaloadedSavedData extends WorldSavedData {
 		}
 
 		return received;
-	}
-
-	@Nullable
-	public <T extends PermaloadedTileEntity> T getTileEntityAt(BlockPos pos) {
-		for (PermaloadedTileEntity tileEntity : chunkTileEntities.get(new ChunkPos(pos))) {
-			if(tileEntity.getPosition().equals(pos)) {
-				//noinspection unchecked
-				return (T)tileEntity;
-			}
-		}
-		return null;
 	}
 }

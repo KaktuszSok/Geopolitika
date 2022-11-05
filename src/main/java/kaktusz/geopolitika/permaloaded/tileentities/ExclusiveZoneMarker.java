@@ -7,7 +7,7 @@ public class ExclusiveZoneMarker extends PermaloadedTileEntity {
 	public static final int ID = 999;
 
 	/**
-	 * @param position This MUST be 0,999,0 in its chunk-relative coordinates!
+	 * @param position This MUST be 0,-{@value ID},0 in its chunk-relative coordinates!
 	 */
 	public ExclusiveZoneMarker(BlockPos position) {
 		super(position);
@@ -17,7 +17,7 @@ public class ExclusiveZoneMarker extends PermaloadedTileEntity {
 	 * For marking a chunk as an exclusive zone.
 	 */
 	public ExclusiveZoneMarker(ChunkPos chunkPos) {
-		this(chunkPos.getBlock(0,999,0));
+		this(chunkPos.getBlock(0,-ID,0));
 	}
 
 	@Override

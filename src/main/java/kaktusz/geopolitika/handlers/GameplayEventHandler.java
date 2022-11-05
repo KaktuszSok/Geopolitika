@@ -20,7 +20,6 @@ import kaktusz.geopolitika.states.StatesManager;
 import kaktusz.geopolitika.tileentities.TileEntityControlPoint;
 import kaktusz.geopolitika.util.MessageUtils;
 import net.minecraft.block.Block;
-import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.tileentity.TileEntity;
@@ -31,7 +30,6 @@ import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
-import net.minecraft.world.chunk.storage.ExtendedBlockStorage;
 import net.minecraftforge.common.ForgeHooks;
 import net.minecraftforge.energy.CapabilityEnergy;
 import net.minecraftforge.event.ServerChatEvent;
@@ -104,7 +102,7 @@ public class GameplayEventHandler {
 		if(te.hasCapability(CapabilityEnergy.ENERGY, null)) {
 			pte = new LabourMachineFE(where);
 		}
-		else if(GTCEuIntegration.hasTileEntityGregtechEnergyCapability(te)) {
+		else if(GTCEuIntegration.isTileEntityGregtechMachine(te)) {
 			pte = new LabourMachineGT(where);
 		}
 
@@ -212,17 +210,6 @@ public class GameplayEventHandler {
 		PermaloadedSavedData.get(e.getWorld()).onChunkLoaded(e.getChunk());
 	}
 
-	@SubscribeEvent
-	public static void onWorldTick(TickEvent.WorldTickEvent e) {
-		if(e.side != Side.SERVER)
-			return;
-
-		if(e.phase == TickEvent.Phase.START) {
-			PermaloadedSavedData.get(e.world).onWorldTick();
-			ProjectileManager.get(e.world).tick();
-		}
-	}
-
 	private static void checkChunkForMachines(ChunkEvent.Load e) {
 		Map<BlockPos, TileEntity> tileEntityMap = e.getChunk().getTileEntityMap();
 		final World world = e.getWorld();
@@ -233,6 +220,17 @@ public class GameplayEventHandler {
 			if (!(permaSave.getTileEntityAt(kvp.getKey()) instanceof LabourMachine<?>)) {
 				handleTileEntityPlaced(world, kvp.getKey(), te);
 			}
+		}
+	}
+
+	@SubscribeEvent
+	public static void onWorldTick(TickEvent.WorldTickEvent e) {
+		if(e.side != Side.SERVER)
+			return;
+
+		if(e.phase == TickEvent.Phase.START) {
+			PermaloadedSavedData.get(e.world).onWorldTick();
+			ProjectileManager.get(e.world).tick();
 		}
 	}
 

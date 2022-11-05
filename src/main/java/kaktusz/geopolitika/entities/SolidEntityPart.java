@@ -22,4 +22,9 @@ public class SolidEntityPart extends MultiPartEntityPart {
 	public AxisAlignedBB getCollisionBoundingBox() {
 		return getEntityBoundingBox();
 	}
+
+	@Override
+	public boolean canBeCollidedWith() {
+		return true;
+	}
 }

@@ -12,11 +12,11 @@ import javax.annotation.ParametersAreNonnullByDefault;
 @ParametersAreNonnullByDefault
 public abstract class PermaloadedTileEntity extends PermaloadedEntity {
 
+	private BlockPos position;
+
 	public PermaloadedTileEntity(BlockPos position) {
 		this.position = position;
 	}
-
-	private BlockPos position;
 
 	public BlockPos getPosition() {
 		return position;

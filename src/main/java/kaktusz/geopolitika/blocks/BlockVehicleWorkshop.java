@@ -1,6 +1,7 @@
 package kaktusz.geopolitika.blocks;
 
 import kaktusz.geopolitika.entities.EntityCustomVehicle;
+import kaktusz.geopolitika.util.RotationUtils;
 import mcp.MethodsReturnNonnullByDefault;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.state.IBlockState;
@@ -39,11 +40,14 @@ public class BlockVehicleWorkshop extends BlockHorizontalBase {
 		EnumFacing blockFacing = state.getValue(BlockHorizontalBase.FACING);
 		Map<Vec3i, IBlockState> states = new HashMap<>();
 		int centreZ = (sizeZ+1)/2;
+		int workshopRotation = RotationUtils.getAmountOfYRotationsDelta(EnumFacing.NORTH, blockFacing);
 		for (int right = -halfSizeX; right <= halfSizeX; right++) {
 			for (int back = 1; back <= sizeZ; back++) {
 				for (int up = 1; up <= sizeY; up++) {
 					IBlockState scannedState = getStateAt(worldIn, pos, blockFacing, right, up, back);
+					scannedState = RotationUtils.rotateAroundY(scannedState, workshopRotation);
 					Vec3i localPos = new Vec3i(right, up-1, centreZ-back);
+
 					if(isStateValid(scannedState))
 						states.put(localPos, scannedState);
 					if(playerIn.isSneaking())

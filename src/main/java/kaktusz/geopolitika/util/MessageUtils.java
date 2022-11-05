@@ -16,6 +16,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 public class MessageUtils {
 	public static final Style ERROR_STYLE = new Style().setColor(TextFormatting.RED);
 	public static final Style BOLD_STYLE = new Style().setBold(true);
+	public static final Style DARK_GREY_STYLE = new Style().setColor(TextFormatting.DARK_GRAY);
 	private static final TextComponentString EMPTY_STRING = new TextComponentString("");
 	private static final ITextComponent MESSAGE_PREFIX = new TextComponentString("[")
 			.setStyle(new Style().setColor(TextFormatting.GRAY))

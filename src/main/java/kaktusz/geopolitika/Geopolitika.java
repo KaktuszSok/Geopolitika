@@ -6,6 +6,7 @@ import kaktusz.geopolitika.init.ModBlocks;
 import kaktusz.geopolitika.init.ModCommands;
 import kaktusz.geopolitika.integration.GTCEuIntegration;
 import kaktusz.geopolitika.integration.XaeroIntegrationCommon;
+import kaktusz.geopolitika.permaloaded.tileentities.ChunkResourcesMarker;
 import kaktusz.geopolitika.proxy.CommonProxy;
 import kaktusz.geopolitika.states.StatesManager;
 import net.minecraft.creativetab.CreativeTabs;
@@ -60,6 +61,9 @@ public class Geopolitika
             XaeroIntegrationCommon.postInit();
         }
         GTCEuIntegration.postInit();
+        if(!GTCEuIntegration.isGregtechLoaded()) {
+            ChunkResourcesMarker.addVanillaOres();
+        }
     }
 
     @Mod.EventHandler

@@ -31,14 +31,14 @@ import java.util.*;
 
 @MethodsReturnNonnullByDefault
 @ParametersAreNonnullByDefault
-public class EntityCustomVehicle extends Entity {//implements IEntityMultiPart {
+public class EntityCustomVehicle extends Entity implements IEntityMultiPart {
 
 	private static final DataParameter<NBTTagCompound> statesNBT = EntityDataManager.createKey(EntityCustomVehicle.class, DataSerializers.COMPOUND_TAG);
 
 	private final Map<Vec3i, IBlockState> states = new HashMap<>();
-	private Vector3d originOffset = new Vector3d(0, 0 ,0);
-	//private MultiPartEntityPart[] parts;
-	//private final Map<MultiPartEntityPart, Vec3d> partOffsets = new HashMap<>();
+	private final Vector3d originOffset = new Vector3d(0, 0 ,0); //final but modified in updateAABB
+	private MultiPartEntityPart[] parts;
+	private final Map<MultiPartEntityPart, Vec3d> partOffsets = new HashMap<>();
 
 	public EntityCustomVehicle(World worldIn) {
 		super(worldIn);
@@ -67,36 +67,42 @@ public class EntityCustomVehicle extends Entity {//implements IEntityMultiPart {
 
 		this.move(MoverType.SELF, this.motionX, this.motionY, this.motionZ);
 		this.doBlockCollisions();
-//		partOffsets.forEach((p, o) -> {
-//			p.onUpdate();
-//			p.setLocationAndAngles(
-//					posX + o.x - originOffset.x,
-//					posY + o.y - originOffset.y,
-//					posZ + o.z - originOffset.z,
-//					0f, 0f);
-//		});
+		partOffsets.forEach((p, o) -> {
+			p.onUpdate();
+			p.setLocationAndAngles(
+					posX + o.x - originOffset.x,
+					posY + o.y - originOffset.y,
+					posZ + o.z - originOffset.z,
+					0f, 0f);
+		});
 
-//		if (motionX*motionY*motionZ != 0)
-//		{
-//			for (MultiPartEntityPart part : parts) {
-//				List<Entity> list = this.world.getEntitiesWithinAABBExcludingEntity(this, part.getEntityBoundingBox());
-//
-//				if (!list.isEmpty())
-//				{
-//					for (Entity entity : list)
-//					{
-//						if (!entity.noClip && !(entity instanceof EntityShulker))
-//						{
-//							entity.move(MoverType.SHULKER, motionX, motionY, motionZ);
-//						}
-//					}
-//				}
-//			}
-//		}
+		if (motionX*motionY*motionZ != 0)
+		{
+			for (MultiPartEntityPart part : parts) {
+				List<Entity> list = this.world.getEntitiesWithinAABBExcludingEntity(this, part.getEntityBoundingBox());
+
+				if (!list.isEmpty())
+				{
+					for (Entity entity : list)
+					{
+						if (!entity.noClip && !(entity instanceof EntityShulker))
+						{
+							entity.move(MoverType.SHULKER, motionX, motionY, motionZ);
+						}
+					}
+				}
+			}
+		}
 
 		this.motionX *= 0.9800000190734863D;
 		this.motionY *= 0.9800000190734863D;
 		this.motionZ *= 0.9800000190734863D;
+	}
+
+	@Override
+	public boolean attackEntityFrom(DamageSource source, float amount) {
+		setDead();
+		return true;
 	}
 
 	public boolean canBePushed()
@@ -104,16 +110,22 @@ public class EntityCustomVehicle extends Entity {//implements IEntityMultiPart {
 		return false;
 	}
 
-//	@Nonnull
-//	@Override
-//	public AxisAlignedBB getCollisionBoundingBox() {
-//		return getEntityBoundingBox();
-//	}
+	@Override
+	public AxisAlignedBB getCollisionBoundingBox() {
+		return null;
+		//return getEntityBoundingBox();
+	}
 
 	@Nullable
 	public AxisAlignedBB getCollisionBox(Entity entityIn)
 	{
 		return entityIn.canBePushed() ? entityIn.getEntityBoundingBox() : null;
+	}
+
+	@Override
+	public boolean canBeCollidedWith() {
+		//return false;
+		return !isDead;
 	}
 
 	private void setStates(Map<Vec3i, IBlockState> states) {
@@ -164,20 +176,9 @@ public class EntityCustomVehicle extends Entity {//implements IEntityMultiPart {
 		setSize(width, 1 + maxY - minY);
 	}
 
-	@Override
-	public boolean canBeCollidedWith() {
-		return !isDead;
-	}
-
-	@Override
-	public boolean attackEntityFrom(DamageSource source, float amount) {
-		setDead();
-		return true;
-	}
-
 	private void readStatesNBT(NBTTagCompound compound) {
 		states.clear();
-//		partOffsets.clear();
+		partOffsets.clear();
 		NBTTagList statesList = compound.getTagList("states", Constants.NBT.TAG_COMPOUND);
 		List<MultiPartEntityPart> parts = new ArrayList<>(statesList.tagCount());
 		for (NBTBase nbtBase : statesList) {
@@ -193,13 +194,13 @@ public class EntityCustomVehicle extends Entity {//implements IEntityMultiPart {
 			float blockWidth = bb == null ? 1.0F : (float)Math.max(bb.maxX - bb.minX, bb.maxZ - bb.minZ);
 			double blockFloor = bb == null ? 0.0D : bb.minY;
 			float blockHeight = bb == null ? 1.0F : (float)(bb.maxY - bb.minY);
-//			MultiPartEntityPart part = new MultiPartEntityPart(this, "block", blockWidth, blockHeight);
-//			part.setLocationAndAngles(this.posX + pos.getX(), this.posY + pos.getY() + blockFloor, this.posZ + pos.getZ(), 0f, 0f);
-//			parts.add(part);
-//			partOffsets.put(part, new Vec3d(pos.getX(), pos.getY() + blockFloor, pos.getZ()));
+			MultiPartEntityPart part = new SolidEntityPart(this, "block", blockWidth, blockHeight);
+			part.setLocationAndAngles(this.posX + pos.getX(), this.posY + pos.getY() + blockFloor, this.posZ + pos.getZ(), 0f, 0f);
+			parts.add(part);
+			partOffsets.put(part, new Vec3d(pos.getX(), pos.getY() + blockFloor, pos.getZ()));
 		}
 		Geopolitika.logger.info("Read states NBT - n=" + states.size());
-//		this.parts = parts.toArray(new MultiPartEntityPart[0]);
+		this.parts = parts.toArray(new MultiPartEntityPart[0]);
 
 		updateAABB();
 	}
@@ -238,20 +239,20 @@ public class EntityCustomVehicle extends Entity {//implements IEntityMultiPart {
 		writeStatesNBT(compound, states);
 	}
 
-//	@Override
-//	public World getWorld() {
-//		return world;
-//	}
+	@Override
+	public World getWorld() {
+		return world;
+	}
 
-//	@Nullable
-//	@Override
-//	public MultiPartEntityPart[] getParts() {
-//		return parts;
-//	}
+	@Nullable
+	@Override
+	public MultiPartEntityPart[] getParts() {
+		return parts;
+	}
 
-//	@Override
-//	public boolean attackEntityFromPart(MultiPartEntityPart part, DamageSource source, float damage) {
-//		attackEntityFrom(source, damage);
-//		return true;
-//	}
+	@Override
+	public boolean attackEntityFromPart(MultiPartEntityPart part, DamageSource source, float damage) {
+		attackEntityFrom(source, damage);
+		return true;
+	}
 }
