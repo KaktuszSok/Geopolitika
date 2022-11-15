@@ -16,7 +16,7 @@ import net.minecraft.util.text.TextComponentTranslation;
 import java.text.NumberFormat;
 
 public class CmdStateBalance extends Subcommand {
-	private static final NumberFormat BALANCE_FORMAT = NumberFormat.getNumberInstance();
+	public static final NumberFormat BALANCE_FORMAT = NumberFormat.getNumberInstance();
 
 	public CmdStateBalance(String name, CommandPermissions permissionLevel) {
 		super(name, permissionLevel);

@@ -1,6 +1,8 @@
 package kaktusz.geopolitika.states;
 
 import com.feed_the_beast.ftblib.lib.data.ForgeTeam;
+import com.google.common.collect.Multimap;
+import com.google.common.collect.MultimapBuilder;
 import io.netty.buffer.ByteBuf;
 import kaktusz.geopolitika.Geopolitika;
 import kaktusz.geopolitika.handlers.ModSyncHandler;
@@ -49,6 +51,8 @@ public class ChunksSavedData extends WorldSavedData {
 	private static final String CHUNK_OWNERS_NBT_TAG = "chunkOwners";
 
 	private final Map<ChunkPos, ChunkInfo> chunkOwners = new HashMap<>();
+	@SuppressWarnings("UnstableApiUsage")
+	private final Multimap<Short, ChunkPos> ownedChunks = MultimapBuilder.hashKeys().hashSetValues().build();
 	private World world;
 
 	public ChunksSavedData() {
@@ -84,17 +88,22 @@ public class ChunksSavedData extends WorldSavedData {
 		ChunkInfo info = chunkOwners.get(chunkPos);
 		if(info != null) {
 			info.controlPointPos = controlPointPos;
+			ownedChunks.remove(info.stateId, chunkPos);
 			info.stateId = stateId;
 		}
 		else {
 			info = new ChunkInfo(controlPointPos, stateId);
 			chunkOwners.put(chunkPos, info);
 		}
+		ownedChunks.put(info.stateId, chunkPos);
 		markDirty();
 	}
 
 	public void removeChunkControlPoint(ChunkPos chunkPos) {
-		chunkOwners.remove(chunkPos);
+		ChunkInfo removed = chunkOwners.remove(chunkPos);
+		if(removed != null) {
+			ownedChunks.remove(removed.stateId, chunkPos);
+		}
 		markDirty();
 	}
 
@@ -158,6 +167,10 @@ public class ChunksSavedData extends WorldSavedData {
 		}
 
 		return closer;
+	}
+
+	public Collection<ChunkPos> getOwnedChunks(short stateId) {
+		return ownedChunks.get(stateId);
 	}
 
 	@Override

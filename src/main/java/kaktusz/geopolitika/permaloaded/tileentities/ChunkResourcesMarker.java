@@ -1,20 +1,26 @@
 package kaktusz.geopolitika.permaloaded.tileentities;
 
 import kaktusz.geopolitika.integration.PTEDisplay;
+import kaktusz.geopolitika.permaloaded.PermaloadedSavedData;
 import kaktusz.geopolitika.util.MessageUtils;
+import mcp.MethodsReturnNonnullByDefault;
 import net.minecraft.block.Block;
 import net.minecraft.init.Blocks;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.TextComponentString;
 
 import javax.annotation.Nullable;
+import javax.annotation.ParametersAreNonnullByDefault;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 
+@MethodsReturnNonnullByDefault
+@ParametersAreNonnullByDefault
 public class ChunkResourcesMarker extends PermaloadedTileEntity implements DisplayablePTE {
 	public static final int ID = 998;
 
@@ -30,10 +36,10 @@ public class ChunkResourcesMarker extends PermaloadedTileEntity implements Displ
 		}
 
 		public ResourcePreset add(Block resource, int weight) {
-			return add(new ItemStack(resource), weight);
+			return add(new ItemStack(resource, 1), weight);
 		}
 		public ResourcePreset add(Item resource, int weight) {
-			return add(new ItemStack(resource), weight);
+			return add(new ItemStack(resource, 1), weight);
 		}
 		public ResourcePreset add(ItemStack resource, int weight) {
 			if(weight <= 0)
@@ -50,7 +56,7 @@ public class ChunkResourcesMarker extends PermaloadedTileEntity implements Displ
 
 		public ItemStack getRandomResource() {
 			int value = ThreadLocalRandom.current().nextInt(total);
-			return resourcesMap.higherEntry(value).getValue();
+			return resourcesMap.higherEntry(value).getValue().copy();
 		}
 
 		@Override
@@ -94,6 +100,16 @@ public class ChunkResourcesMarker extends PermaloadedTileEntity implements Displ
 		RESOURCE_PRESETS.put(presetsWeightTotal, preset);
 	}
 
+	@Nullable
+	public static ChunkResourcesMarker getResourcesAt(ChunkPos chunk, PermaloadedSavedData save) {
+		BlockPos blockPos = chunk.getBlock(7, -ChunkResourcesMarker.ID, 7);
+		PermaloadedTileEntity pte = save.getTileEntityAt(blockPos);
+		if(pte instanceof ChunkResourcesMarker)
+			return (ChunkResourcesMarker) pte;
+		return null;
+	}
+
+	private int random = 0;
 	public ResourcePreset resources;
 
 	/**
@@ -122,15 +138,29 @@ public class ChunkResourcesMarker extends PermaloadedTileEntity implements Displ
 
 	@Override
 	public boolean persistent() {
-		return false; //TODO make persistent if within a mine's radius
+		return getSave().hasAnyTileEntitiesOfType(Mine.class, new ChunkPos(getPosition()), Mine.MINING_RADIUS); //only persist resources within a mine's radius
+	}
+
+	@Override
+	public NBTTagCompound writeToNBT(NBTTagCompound compound) {
+		super.writeToNBT(compound);
+		compound.setInteger("rand", random);
+		return compound;
+	}
+
+	@Override
+	public void readFromNBT(NBTTagCompound nbt) {
+		super.readFromNBT(nbt);
+		random = nbt.getInteger("rand");
+		resources = RESOURCE_PRESETS.higherEntry(random).getValue();
 	}
 
 	/**
 	 * Initialises the resource weights to that of a randomly selected preset
 	 */
 	public void initialise(Random rng) {
-		int rand = rng.nextInt(presetsWeightTotal);
-		resources = RESOURCE_PRESETS.higherEntry(rand).getValue();
+		random = rng.nextInt(presetsWeightTotal);
+		resources = RESOURCE_PRESETS.higherEntry(random).getValue();
 	}
 
 	public ItemStack getRandomResource() {
@@ -164,7 +194,12 @@ public class ChunkResourcesMarker extends PermaloadedTileEntity implements Displ
 			sb.append("\n - ").append(percentage).append("% ").append(entry.getValue().getDisplayName());
 		}
 		display.hoverText += sb.toString();
-		ITextComponent subtext = new TextComponentString("Place a Mine nearby to collect resources from this deposit."); //TODO translation?
+		ITextComponent subtext; //TODO translation?
+		if(persistent()) {
+			subtext = new TextComponentString("Resources are being mined from this deposited.");
+		} else {
+			subtext = new TextComponentString("Place a Mine nearby to collect resources from this deposit.");
+		}
 		subtext.setStyle(MessageUtils.DARK_GREY_STYLE);
 		display.hoverText += "\n" + subtext.getFormattedText();
 		return display;

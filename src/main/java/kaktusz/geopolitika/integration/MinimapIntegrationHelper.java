@@ -185,8 +185,8 @@ public class MinimapIntegrationHelper {
 		//calculate stats from known and cached PTEDisplays
 		float population = 0;
 		float workingPopulation = 0;
-		float industrialOutput = 0;
 		float maxIndustrialOutput = 0;
+		float industrialOutput = 0;
 		boolean usedCachedPop = false;
 		boolean usedCachedIndustry = false;
 		boolean hasAnyLabourContributions = false;

@@ -1,9 +1,11 @@
 package kaktusz.geopolitika.permaloaded.tileentities;
 
 import com.feed_the_beast.ftblib.lib.icon.Color4I;
+import kaktusz.geopolitika.Geopolitika;
 import kaktusz.geopolitika.blocks.BlockMine;
 import kaktusz.geopolitika.integration.PTEDisplay;
 import kaktusz.geopolitika.util.MathsUtils;
+import kaktusz.geopolitika.util.MessageUtils;
 import kaktusz.geopolitika.util.PermissionUtils;
 import kaktusz.geopolitika.util.PrecalcSpiral;
 import net.minecraft.block.BlockStairs;
@@ -16,6 +18,8 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.TextComponentString;
 import net.minecraft.world.chunk.Chunk;
 import org.apache.commons.lang3.RandomUtils;
 
@@ -23,8 +27,9 @@ import java.util.Random;
 
 public class Mine extends ExclusiveZoneTE implements LabourConsumer, DisplayablePTE {
 	public static final int ID = 1001;
-	public static final int CHUNK_RADIUS = 3;
+	public static final int MINING_RADIUS = 3;
 	private static final boolean SMOOTH_CORNERS = false;
+	private static final int MAX_BORDER_ROUGHNESS = 6;
 	private static final int Y_STEP_PER_CHUNK = 6;
 	private static final int BLOCKS_PER_TICK = 50;
 	private static final Random RNG = new Random();
@@ -45,7 +50,7 @@ public class Mine extends ExclusiveZoneTE implements LabourConsumer, Displayable
 
 	@Override
 	public int getRadius() {
-		return CHUNK_RADIUS;
+		return MINING_RADIUS;
 	}
 
 	@Override
@@ -60,42 +65,76 @@ public class Mine extends ExclusiveZoneTE implements LabourConsumer, Displayable
 			return;
 		}
 
+		ChunkPos chunkMined = null;
 		for (int i = 0; i < BLOCKS_PER_TICK; i++) {
-			tryMineRandom();
+			chunkMined = tryMineRandom();
+		}
+
+		//noinspection ConstantConditions
+		if(chunkMined != null) {
+			ChunkResourcesMarker deposit = ChunkResourcesMarker.getResourcesAt(chunkMined, getSave());
+			if(deposit != null) {
+				ItemStack resourceMined = deposit.getRandomResource();
+				ItemStack leftover = ResourceCollector.insertIntoNearby(resourceMined, getSave(), getPosition(), getSearchRadius(), true);
+			}
 		}
 	}
 
-	private void tryMineRandom() {
-		int offsetX = MathsUtils.randomRange(-CHUNK_RADIUS, CHUNK_RADIUS+1);
-		int offsetZ = MathsUtils.randomRange(-CHUNK_RADIUS, CHUNK_RADIUS+1);
+	private ChunkPos tryMineRandom() {
+		int offsetX = MathsUtils.randomRange(-MINING_RADIUS, MINING_RADIUS +1);
+		int offsetZ = MathsUtils.randomRange(-MINING_RADIUS, MINING_RADIUS +1);
 		ChunkPos chosenChunk = new ChunkPos((getPosition().getX() >> 4) + offsetX, (getPosition().getZ() >> 4) + offsetZ);
 		int localX = RandomUtils.nextInt(0, 16);
 		int localZ = RandomUtils.nextInt(0, 16);
 		BlockPos chosenBlock = chosenChunk.getBlock(localX, 255, localZ);
+
+		if(!getWorld().isBlockLoaded(chosenBlock, false))
+			return chosenChunk;
+
+		//centre pillar
 		int dx = chosenBlock.getX() - getPosition().getX();
 		int dz = chosenBlock.getZ() - getPosition().getZ();
 		if(dx*dx + dz*dz < 5*5)
-			return;
+			return chosenChunk;
+
+		//corners
 		if(SMOOTH_CORNERS) {
-			if(offsetX == -CHUNK_RADIUS) {
-				if(offsetZ == -CHUNK_RADIUS) {
+			if(offsetX == -MINING_RADIUS) {
+				if(offsetZ == -MINING_RADIUS) {
 					if(localX + localZ < 16)
-						return;
-				} else if(offsetZ == CHUNK_RADIUS) {
+						return chosenChunk;
+				} else if(offsetZ == MINING_RADIUS) {
 					if(localX + 15 - localZ < 16)
-						return;
+						return chosenChunk;
 				}
-			} else if(offsetX == CHUNK_RADIUS) {
-				if(offsetZ == -CHUNK_RADIUS) {
+			} else if(offsetX == MINING_RADIUS) {
+				if(offsetZ == -MINING_RADIUS) {
 					if(15 - localX + localZ < 16)
-						return;
-				} else if (offsetZ == CHUNK_RADIUS) {
+						return chosenChunk;
+				} else if (offsetZ == MINING_RADIUS) {
 					if(15 - localX + 15 - localZ < 16)
-						return;
+						return chosenChunk;
 				}
 			}
 		}
+
+		//border roughness
+		ChunkPos centreChunk = new ChunkPos(getPosition());
+		int minX = ((centreChunk.x - MINING_RADIUS) << 4) - 1;
+		int maxX = ((centreChunk.x + MINING_RADIUS) << 4) + 16;
+		int minZ = ((centreChunk.z - MINING_RADIUS) << 4) - 1;
+		int maxZ = ((centreChunk.z + MINING_RADIUS) << 4) + 16;
+		int borderDistX = Math.min(chosenBlock.getX() - minX, maxX - chosenBlock.getX());
+		int borderDistZ = Math.min(chosenBlock.getZ() - minZ, maxZ - chosenBlock.getZ());
+		int seed = borderDistX < borderDistZ ? chosenBlock.getZ() : chosenBlock.getX();
+		RNG.setSeed(seed);
+		int randomVariance = RNG.nextInt(MAX_BORDER_ROUGHNESS+1);
+		if(Math.min(borderDistX, borderDistZ) < randomVariance) {
+			return chosenChunk;
+		}
+
 		mineBlockBeneath(chosenBlock);
+		return chosenChunk;
 	}
 
 	private void mineBlockBeneath(BlockPos topBlock) {
@@ -154,8 +193,8 @@ public class Mine extends ExclusiveZoneTE implements LabourConsumer, Displayable
 		int floorY = getPosition().getY() - 1 - Y_STEP_PER_CHUNK;
 		int chunkDx = Math.abs((pos.getX() >> 4) - (getPosition().getX() >> 4));
 		int chunkDz = Math.abs((pos.getZ() >> 4) - (getPosition().getZ() >> 4));
-		int chunksToEdge = CHUNK_RADIUS - Math.max(chunkDx, chunkDz);
-		floorY -= Math.min(chunksToEdge, CHUNK_RADIUS-1)*Y_STEP_PER_CHUNK;
+		int chunksToEdge = MINING_RADIUS - Math.max(chunkDx, chunkDz);
+		floorY -= Math.min(chunksToEdge, MINING_RADIUS -1)*Y_STEP_PER_CHUNK;
 
 		if(pos.getY() > floorY)
 			return true;
@@ -185,6 +224,12 @@ public class Mine extends ExclusiveZoneTE implements LabourConsumer, Displayable
 	@Override
 	public PTEDisplay getDisplay() {
 		PTEDisplay disp = createBasicPTEDisplay(new ItemStack(Items.IRON_PICKAXE), "Mine");
+		float oresPerHour = 20*60*60f / ((1 + MINING_RADIUS)*(1 + MINING_RADIUS));
+		int amountDeposits = getSave().findTileEntitiesOfType(ChunkResourcesMarker.class, new ChunkPos(getPosition()), MINING_RADIUS).size();
+		oresPerHour *= amountDeposits;
+		ITextComponent oresPerHourComponent = new TextComponentString(Math.round(oresPerHour) + " Ores/h")
+				.setStyle(MessageUtils.SHINY_STYLE);
+		disp.hoverText += "\n - Extracting approx. " + oresPerHourComponent.getFormattedText();
 
 		disp.addRadiusHighlight(getSearchRadius());
 		disp.addRadiusHighlight(getRadius(), WORK_RADIUS_COLOUR.rgba(), WORK_RADIUS_FILL_OPACITY);
@@ -219,7 +264,7 @@ public class Mine extends ExclusiveZoneTE implements LabourConsumer, Displayable
 
 	@Override
 	public int getSearchRadius() {
-		return 4 + CHUNK_RADIUS;
+		return 4 + MINING_RADIUS;
 	}
 
 	@Override

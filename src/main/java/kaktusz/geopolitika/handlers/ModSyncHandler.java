@@ -113,4 +113,11 @@ public class ModSyncHandler {
 			MinimapIntegrationHelper.clearCachedPTEDisplays();
 		}
 	}
+
+	@SubscribeEvent
+	public static void onWorldUnload(WorldEvent.Unload e) {
+		if(e.getWorld().isRemote) { //client-side
+			MinimapIntegrationHelper.clearCachedPTEDisplays();
+		}
+	}
 }

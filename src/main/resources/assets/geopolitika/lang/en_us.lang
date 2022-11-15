@@ -42,6 +42,7 @@ geopolitika.commands.state.balance.usage=/state balance
 geopolitika.commands.state.balance.response=Balance: %1$scr
 geopolitika.commands.state.deposit.usage=/state deposit <amount>
 geopolitika.commands.state.deposit.success=Deposited %1$scr to %2$s; State Balance: %3$scr
+geopolitika.commands.state.stats.usage=/state stats [target state]
 geopolitika.commands.state.cooldown.usage=/state cooldown <state blocked from attacking> <state protected from an attack> <minutes>
 geopolitika.commands.state.cooldown.success=%1$s's cooldown for attacking %2$s has been set to %3$s minutes.
 

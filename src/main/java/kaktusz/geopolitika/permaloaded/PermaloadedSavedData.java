@@ -30,6 +30,7 @@ import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
 import java.util.*;
 import java.util.function.Function;
+import java.util.stream.Stream;
 
 @MethodsReturnNonnullByDefault
 @ParametersAreNonnullByDefault
@@ -94,21 +95,29 @@ public class PermaloadedSavedData extends WorldSavedData {
 		return findTileEntitiesOfType(type, chunk, 0);
 	}
 	public <T extends PermaloadedTileEntity> Collection<T> findTileEntitiesOfType(Class<T> type, ChunkPos chunk, int radius) {
-		return findTileEntitiesByTypeOrInterface(type, chunk, radius);
+		return findTileEntitiesByTypeOrInterface(type, chunk, radius, null, true);
 	}
 
 	public <T extends PTEInterface> Collection<T> findTileEntitiesByInterface(Class<T> type, ChunkPos chunk) {
 		return findTileEntitiesByInterface(type, chunk, 0);
 	}
 	public <T extends PTEInterface> Collection<T> findTileEntitiesByInterface(Class<T> type, ChunkPos chunk, int radius) {
-		return findTileEntitiesByTypeOrInterface(type, chunk, radius);
+		return findTileEntitiesByTypeOrInterface(type, chunk, radius, null, true);
 	}
 
-	private <T> Collection<T> findTileEntitiesByTypeOrInterface(Class<T> type, ChunkPos chunk, int radius) {
-		Collection<T> found = new ArrayList<>();
+	public <T> List<T> findTileEntitiesByTypeOrInterface(Class<T> type, ChunkPos chunk, int radius, @Nullable final ForgeTeam stateFilter, boolean allowUnclaimedChunks) {
+		List<T> found = new ArrayList<>();
 		for (int x = -radius; x <= radius; x++) {
 			for (int z = -radius; z <= radius; z++) {
 				ChunkPos curr = new ChunkPos(chunk.x + x, chunk.z + z);
+				if(stateFilter != null) { //if a state filter is given, skip any chunks claimed by a different state
+					ForgeTeam owner = StatesManager.getChunkOwner(curr.x, curr.z, world);
+					if(!owner.equalsTeam(stateFilter)) {
+						if(owner.isValid() || !allowUnclaimedChunks) {
+							continue;
+						}
+					}
+				}
 				for (PermaloadedTileEntity pte : chunkTileEntities.get(curr)) {
 					if(type.isInstance(pte)) {
 						//noinspection unchecked
@@ -304,6 +313,14 @@ public class PermaloadedSavedData extends WorldSavedData {
 		return null;
 	}
 
+	public Stream<LabourConsumer> getLabourConsumersInChunks(Collection<ChunkPos> chunks) {
+		return chunks.stream().flatMap(cp -> labourConsumers.get(cp).stream());
+	}
+
+	public Stream<LabourSupplier> getLabourSuppliersInChunks(Collection<ChunkPos> chunks) {
+		return chunks.stream().flatMap(cp -> labourSuppliers.get(cp).stream());
+	}
+
 	/**
 	 * Enqueues an action to be called right after we are done ticking the world.
 	 */
@@ -319,9 +336,11 @@ public class PermaloadedSavedData extends WorldSavedData {
 		if(rng.nextDouble() <= 1.0/ModConfig.chunkResourcesRarity
 				&& !BiomeDictionary.hasType(biome, BiomeDictionary.Type.OCEAN))
 		{
-			ChunkResourcesMarker resources = addTileEntity(new ChunkResourcesMarker(chunk.getPos()));
-			resources.initialise(rng);
-			addTileEntity(resources);
+			if(ChunkResourcesMarker.getResourcesAt(chunk.getPos(), this) == null) { //don't overwrite persisted resources
+				ChunkResourcesMarker resources = addTileEntity(new ChunkResourcesMarker(chunk.getPos()));
+				resources.initialise(rng);
+				addTileEntity(resources);
+			}
 		} else {
 			removeTileEntityAt(chunk.getPos().getBlock(7, -ChunkResourcesMarker.ID, 7));
 		}
@@ -431,7 +450,7 @@ public class PermaloadedSavedData extends WorldSavedData {
 	 * @return How much labour could be successfully consumed
 	 */
 	private double consumeLabourInChunk(ChunkPos chunk, double amount, int tier) {
-		Iterator<LabourSupplier> suppliers = findTileEntitiesByInterface(LabourSupplier.class, chunk).iterator(); //TODO improve efficiency of this so that it doesn't have to look through all PTEs in the chunk
+		Iterator<LabourSupplier> suppliers = labourSuppliers.get(chunk).iterator();
 
 		double received = 0.0;
 		while (suppliers.hasNext() && received < amount) {

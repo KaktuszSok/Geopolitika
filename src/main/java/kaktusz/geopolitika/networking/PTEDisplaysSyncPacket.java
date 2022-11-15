@@ -8,6 +8,7 @@ import kaktusz.geopolitika.integration.MinimapIntegrationHelper;
 import kaktusz.geopolitika.permaloaded.PermaloadedSavedData;
 import kaktusz.geopolitika.permaloaded.tileentities.DisplayablePTE;
 import kaktusz.geopolitika.integration.PTEDisplay;
+import net.minecraft.client.Minecraft;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
@@ -124,7 +125,9 @@ public class PTEDisplaysSyncPacket implements IMessage {
 
 		@Override
 		public IMessage onMessage(PTEDisplaysSyncPacket message, MessageContext ctx) {
-			MinimapIntegrationHelper.updatePTEDisplays(message.data, VIEW_DISTANCE);
+			Minecraft.getMinecraft().addScheduledTask(() -> {
+				MinimapIntegrationHelper.updatePTEDisplays(message.data, VIEW_DISTANCE);
+			});
 			return null;
 		}
 	}

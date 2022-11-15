@@ -25,6 +25,8 @@ public class ModBlocks {
 	public static final BlockPermaBase<House> HOUSE = registerPTEBlock(new BlockBuilding<>("house", Material.WOOD, Geopolitika.CREATIVE_TAB, House::new));
 	public static final BlockPermaBase<CreativeLabourSupplier> CREATIVE_LABOUR_SUPPLIER = registerPTEBlock(new BlockCreativeLabourSupplier("creative_labour_supplier", Material.PORTAL, Geopolitika.CREATIVE_TAB));
 
+	public static final BlockCollector RESOURCE_COLLECTOR = registerPTEBlock(new BlockCollector("resource_collector", Material.IRON, Geopolitika.CREATIVE_TAB));
+
 	public static final BlockVehicleWorkshop VEHICLE_WORKSHOP = new BlockVehicleWorkshop("vehicle_workshop", Material.IRON, Geopolitika.CREATIVE_TAB,
 			2, 3, 7);
 

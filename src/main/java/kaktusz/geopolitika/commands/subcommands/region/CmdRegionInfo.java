@@ -40,7 +40,7 @@ public class CmdRegionInfo extends Subcommand {
 				.appendSibling(StatesManager.getRegionName(sender.getPosition(), sender.getEntityWorld(), false))
 				.appendSibling(new TextComponentString(" in ").setStyle(HEADING_STYLE))
 				.appendSibling(state.getCommandTitle())
-				.appendSibling(new TextComponentString("\nControl Point position: ").setStyle(BASE_MESSAGE_STYLE))
+				.appendSibling(new TextComponentString("\n - Control Point position: ").setStyle(BASE_MESSAGE_STYLE))
 				.appendSibling(new TextComponentString(
 						controlPointPos.getX() + ", " + controlPointPos.getY() + ", " + controlPointPos.getZ()
 				).setStyle(CONTROL_POINT_POS_STYLE));

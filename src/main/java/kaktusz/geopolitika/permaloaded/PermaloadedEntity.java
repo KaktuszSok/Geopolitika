@@ -23,6 +23,13 @@ public abstract class PermaloadedEntity {
 		return save.getWorld();
 	}
 
+	/**
+	 * Convention:<br>
+	 * 0-999: Special Markers<br>
+	 * 1XXX: Industry<br>
+	 * 2XXX: Buildings<br>
+	 * 3XXX: Logistics
+	 */
 	public abstract int getID();
 
 	/***

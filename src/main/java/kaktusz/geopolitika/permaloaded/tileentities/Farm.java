@@ -1,11 +1,8 @@
 package kaktusz.geopolitika.permaloaded.tileentities;
 
-import com.feed_the_beast.ftblib.lib.data.ForgePlayer;
 import com.feed_the_beast.ftblib.lib.icon.Color4I;
-import kaktusz.geopolitika.Geopolitika;
 import kaktusz.geopolitika.blocks.BlockFarm;
 import kaktusz.geopolitika.integration.PTEDisplay;
-import kaktusz.geopolitika.states.StatesManager;
 import kaktusz.geopolitika.util.PermissionUtils;
 import kaktusz.geopolitika.util.PrecalcSpiral;
 import net.minecraft.block.Block;
@@ -19,10 +16,8 @@ import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.World;
-import net.minecraft.world.WorldServer;
 import net.minecraftforge.common.IPlantable;
 import net.minecraftforge.common.util.FakePlayer;
-import net.minecraftforge.common.util.FakePlayerFactory;
 
 public class Farm extends ExclusiveZoneTE implements LabourConsumer, DisplayablePTE {
 	public static final int ID = 1000;

@@ -16,6 +16,7 @@ import net.minecraftforge.fml.client.registry.RenderingRegistry;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.minecraftforge.fml.common.network.NetworkRegistry;
 import net.minecraftforge.fml.common.registry.EntityEntry;
 import net.minecraftforge.fml.common.registry.EntityEntryBuilder;
 import net.minecraftforge.fml.common.registry.EntityRegistry;
@@ -26,7 +27,7 @@ public class RegistryHandler {
 	private static int entityId = 0;
 
 	public static void init(FMLInitializationEvent e) {
-		//NetworkRegistry.INSTANCE.registerGuiHandler(Geopolitika.INSTANCE, new GuiProxy());
+		NetworkRegistry.INSTANCE.registerGuiHandler(Geopolitika.INSTANCE, new GuiProxy());
 	}
 
 	@SubscribeEvent
