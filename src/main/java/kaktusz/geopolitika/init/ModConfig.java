@@ -46,6 +46,9 @@ public class ModConfig {
 	@Config.RangeDouble(min=1.0)
 	public static double chunkResourcesRarity = 100.0;
 
+	@Config.Comment({"The hourly upkeep cost for a state's claimed chunks."})
+	public static int upkeepCostPerChunk = 3;
+
 	@Config.Comment("How many display icons can be kept up on the world map after leaving their vicinity. Reduce if the map screen is lagging.")
 	@Config.RangeInt(min=0)
 	public static int maxMapDisplaysCached = 1000;

@@ -10,13 +10,12 @@ import gregtech.api.worldgen.filler.FillerEntry;
 import gregtech.common.pipelike.cable.tile.TileEntityCable;
 import kaktusz.geopolitika.Geopolitika;
 import kaktusz.geopolitika.permaloaded.PermaloadedSavedData;
-import kaktusz.geopolitika.permaloaded.tileentities.ChunkResourcesMarker;
+import kaktusz.geopolitika.permaloaded.tileentities.ChunkDepositMarker;
 import kaktusz.geopolitika.permaloaded.tileentities.LabourMachineGT;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraftforge.fml.common.Loader;
-import org.apache.commons.lang3.tuple.Pair;
 
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
@@ -131,12 +130,12 @@ public class GTCEuIntegration {
 			String veinName = oreInfo.name;
 			if(veinName.endsWith(" vein"))
 				veinName = veinName.replace(" vein", "");
-			ChunkResourcesMarker.ResourcePreset preset = new ChunkResourcesMarker.ResourcePreset(veinName);
+			ChunkDepositMarker.ResourcePreset preset = new ChunkDepositMarker.ResourcePreset(veinName);
 			for (int i = 0; i < oreInfo.ores.size(); i++) {
 				preset.add(oreInfo.ores.get(i), oreInfo.oreWeights.get(i));
 			}
 			Geopolitika.logger.info("Added resource preset for GT vein " + veinName + ": " + preset.toString());
-			ChunkResourcesMarker.addResourcePreset(oreInfo.spawnWeight, preset);
+			ChunkDepositMarker.addResourcePreset(oreInfo.spawnWeight, preset);
 		}
 	}
 

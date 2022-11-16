@@ -1,7 +1,6 @@
 package kaktusz.geopolitika.permaloaded.tileentities;
 
 import com.feed_the_beast.ftblib.lib.icon.Color4I;
-import kaktusz.geopolitika.Geopolitika;
 import kaktusz.geopolitika.blocks.BlockMine;
 import kaktusz.geopolitika.integration.PTEDisplay;
 import kaktusz.geopolitika.util.MathsUtils;
@@ -25,9 +24,10 @@ import org.apache.commons.lang3.RandomUtils;
 
 import java.util.Random;
 
-public class Mine extends ExclusiveZoneTE implements LabourConsumer, DisplayablePTE {
+public class Mine extends ExclusiveZoneTE implements LabourConsumer, DisplayablePTE, UpkeepPTE {
 	public static final int ID = 1001;
 	public static final int MINING_RADIUS = 3;
+	private static final float ORE_GAIN_CHANCE = 0.5f; //chance of getting an ore when mining a deposit-containing chunk. Range 0-1.
 	private static final boolean SMOOTH_CORNERS = false;
 	private static final int MAX_BORDER_ROUGHNESS = 6;
 	private static final int Y_STEP_PER_CHUNK = 6;
@@ -36,7 +36,6 @@ public class Mine extends ExclusiveZoneTE implements LabourConsumer, Displayable
 	private static final Color4I WORK_RADIUS_COLOUR = Color4I.rgba(106, 88, 133, 222);
 	private static final short WORK_RADIUS_FILL_OPACITY = 80;
 
-	private PrecalcSpiral labourSpiral;
 	private double labourReceived = 0;
 
 	public Mine(BlockPos position) {
@@ -60,7 +59,7 @@ public class Mine extends ExclusiveZoneTE implements LabourConsumer, Displayable
 
 	@Override
 	public void onTick() {
-		if(getLabourReceived() < getLabourPerTick()) {
+		if(!canDoWork()) {
 			spawnLabourNotReceivedParticles();
 			return;
 		}
@@ -71,8 +70,8 @@ public class Mine extends ExclusiveZoneTE implements LabourConsumer, Displayable
 		}
 
 		//noinspection ConstantConditions
-		if(chunkMined != null) {
-			ChunkResourcesMarker deposit = ChunkResourcesMarker.getResourcesAt(chunkMined, getSave());
+		if(chunkMined != null && RandomUtils.nextFloat(0f, 1.0f) < ORE_GAIN_CHANCE) {
+			ChunkDepositMarker deposit = ChunkDepositMarker.getDepositAt(chunkMined, getSave());
 			if(deposit != null) {
 				ItemStack resourceMined = deposit.getRandomResource();
 				ItemStack leftover = ResourceCollector.insertIntoNearby(resourceMined, getSave(), getPosition(), getSearchRadius(), true);
@@ -224,12 +223,22 @@ public class Mine extends ExclusiveZoneTE implements LabourConsumer, Displayable
 	@Override
 	public PTEDisplay getDisplay() {
 		PTEDisplay disp = createBasicPTEDisplay(new ItemStack(Items.IRON_PICKAXE), "Mine");
-		float oresPerHour = 20*60*60f / ((1 + MINING_RADIUS)*(1 + MINING_RADIUS));
-		int amountDeposits = getSave().findTileEntitiesOfType(ChunkResourcesMarker.class, new ChunkPos(getPosition()), MINING_RADIUS).size();
+		addUpkeepText(disp);
+
+		float oresPerHour = 20*60*60f / ((1 + 2*MINING_RADIUS)*(1 + 2*MINING_RADIUS));
+		int amountDeposits = getSave().findTileEntitiesOfType(ChunkDepositMarker.class, new ChunkPos(getPosition()), MINING_RADIUS).size();
 		oresPerHour *= amountDeposits;
-		ITextComponent oresPerHourComponent = new TextComponentString(Math.round(oresPerHour) + " Ores/h")
-				.setStyle(MessageUtils.SHINY_STYLE);
-		disp.hoverText += "\n - Extracting approx. " + oresPerHourComponent.getFormattedText();
+		oresPerHour *= Math.min(ORE_GAIN_CHANCE, 1.0f);
+		if(canDoWork()) {
+			ITextComponent oresPerHourComponent = new TextComponentString(Math.round(oresPerHour) + " ores/h")
+					.setStyle(MessageUtils.SHINY_STYLE);
+			disp.hoverText += "\n - Extracting approx. " + oresPerHourComponent.getFormattedText();
+		}
+		else {
+			ITextComponent oresPerHourComponent = new TextComponentString(" - Could extract approx. " + Math.round(oresPerHour) + " ores/h")
+					.setStyle(MessageUtils.DARK_GREY_STYLE);
+			disp.hoverText += "\n" + oresPerHourComponent.getFormattedText();
+		}
 
 		disp.addRadiusHighlight(getSearchRadius());
 		disp.addRadiusHighlight(getRadius(), WORK_RADIUS_COLOUR.rgba(), WORK_RADIUS_FILL_OPACITY);
@@ -268,12 +277,12 @@ public class Mine extends ExclusiveZoneTE implements LabourConsumer, Displayable
 	}
 
 	@Override
-	public PrecalcSpiral getCachedSpiral() {
-		return labourSpiral;
+	public long getBaseUpkeep() {
+		return 1000;
 	}
 
 	@Override
-	public PrecalcSpiral setCachedSpiral(PrecalcSpiral spiral) {
-		return labourSpiral = spiral;
+	public boolean canDoWork() {
+		return LabourConsumer.super.canDoWork() && !inInvalidTerritory();
 	}
 }

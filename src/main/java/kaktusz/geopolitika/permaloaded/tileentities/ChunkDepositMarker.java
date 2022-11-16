@@ -21,7 +21,7 @@ import java.util.concurrent.ThreadLocalRandom;
 
 @MethodsReturnNonnullByDefault
 @ParametersAreNonnullByDefault
-public class ChunkResourcesMarker extends PermaloadedTileEntity implements DisplayablePTE {
+public class ChunkDepositMarker extends PermaloadedTileEntity implements DisplayablePTE {
 	public static final int ID = 998;
 
 	public static class ResourcePreset {
@@ -101,11 +101,11 @@ public class ChunkResourcesMarker extends PermaloadedTileEntity implements Displ
 	}
 
 	@Nullable
-	public static ChunkResourcesMarker getResourcesAt(ChunkPos chunk, PermaloadedSavedData save) {
-		BlockPos blockPos = chunk.getBlock(7, -ChunkResourcesMarker.ID, 7);
+	public static ChunkDepositMarker getDepositAt(ChunkPos chunk, PermaloadedSavedData save) {
+		BlockPos blockPos = chunk.getBlock(7, -ChunkDepositMarker.ID, 7);
 		PermaloadedTileEntity pte = save.getTileEntityAt(blockPos);
-		if(pte instanceof ChunkResourcesMarker)
-			return (ChunkResourcesMarker) pte;
+		if(pte instanceof ChunkDepositMarker)
+			return (ChunkDepositMarker) pte;
 		return null;
 	}
 
@@ -115,14 +115,14 @@ public class ChunkResourcesMarker extends PermaloadedTileEntity implements Displ
 	/**
 	 * @param position This MUST be 7,-{@value ID},7 in its chunk-relative coordinates!
 	 */
-	public ChunkResourcesMarker(BlockPos position) {
+	public ChunkDepositMarker(BlockPos position) {
 		super(position);
 	}
 
 	/**
 	 * For marking a chunk as an exclusive zone.
 	 */
-	public ChunkResourcesMarker(ChunkPos chunkPos) {
+	public ChunkDepositMarker(ChunkPos chunkPos) {
 		this(chunkPos.getBlock(7,-ID,7));
 	}
 
@@ -196,7 +196,7 @@ public class ChunkResourcesMarker extends PermaloadedTileEntity implements Displ
 		display.hoverText += sb.toString();
 		ITextComponent subtext; //TODO translation?
 		if(persistent()) {
-			subtext = new TextComponentString("Resources are being mined from this deposited.");
+			subtext = new TextComponentString("Resources are being mined from this deposit.");
 		} else {
 			subtext = new TextComponentString("Place a Mine nearby to collect resources from this deposit.");
 		}

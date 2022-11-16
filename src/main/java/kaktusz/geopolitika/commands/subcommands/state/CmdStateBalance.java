@@ -13,11 +13,7 @@ import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.text.TextComponentTranslation;
 
-import java.text.NumberFormat;
-
 public class CmdStateBalance extends Subcommand {
-	public static final NumberFormat BALANCE_FORMAT = NumberFormat.getNumberInstance();
-
 	public CmdStateBalance(String name, CommandPermissions permissionLevel) {
 		super(name, permissionLevel);
 	}
@@ -31,7 +27,7 @@ public class CmdStateBalance extends Subcommand {
 		ForgeTeam state = CommandAssertions.playerMustBeInState(player);
 
 		long balance = StatesSavedData.get(player.world).getBalance(state.getUID());
-		String balanceStr = BALANCE_FORMAT.format(balance);
+		String balanceStr = MessageUtils.CREDITS_FORMAT.format(balance);
 		MessageUtils.sendStateMessage(player, new TextComponentTranslation("geopolitika.commands.state.balance.response", balanceStr));
 	}
 }

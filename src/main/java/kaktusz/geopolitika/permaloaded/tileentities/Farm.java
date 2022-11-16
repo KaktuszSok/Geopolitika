@@ -19,7 +19,7 @@ import net.minecraft.world.World;
 import net.minecraftforge.common.IPlantable;
 import net.minecraftforge.common.util.FakePlayer;
 
-public class Farm extends ExclusiveZoneTE implements LabourConsumer, DisplayablePTE {
+public class Farm extends ExclusiveZoneTE implements LabourConsumer, DisplayablePTE, UpkeepPTE {
 	public static final int ID = 1000;
 	public static final int CHUNK_RADIUS = 1;
 	private static final int BORDER_WIDTH = 1;
@@ -33,7 +33,6 @@ public class Farm extends ExclusiveZoneTE implements LabourConsumer, Displayable
 	private IPlantable plantable = null;
 	private int tickCooldown = 0;
 
-	private PrecalcSpiral labourSpiral;
 	private double labourReceived = 0;
 
 	public Farm(BlockPos position) {
@@ -105,7 +104,7 @@ public class Farm extends ExclusiveZoneTE implements LabourConsumer, Displayable
 		if (plantable == null)
 			return;
 
-		if (getLabourReceived() < getLabourPerTick()) { //insufficient labour
+		if (!canDoWork()) { //insufficient labour
 			if(getWorld().isBlockLoaded(getPosition(), false)) {
 				spawnLabourNotReceivedParticles();
 			}
@@ -222,16 +221,6 @@ public class Farm extends ExclusiveZoneTE implements LabourConsumer, Displayable
 	}
 
 	@Override
-	public PrecalcSpiral getCachedSpiral() {
-		return labourSpiral;
-	}
-
-	@Override
-	public PrecalcSpiral setCachedSpiral(PrecalcSpiral spiral) {
-		return labourSpiral = spiral;
-	}
-
-	@Override
 	public PermaloadedTileEntity getPermaTileEntity() {
 		return this;
 	}
@@ -240,6 +229,7 @@ public class Farm extends ExclusiveZoneTE implements LabourConsumer, Displayable
 	public PTEDisplay getDisplay() {
 		Item iconItem = plantable == null ? Items.WHEAT : ((Item) plantable);
 		PTEDisplay disp = createBasicPTEDisplay(new ItemStack(iconItem), "Farm");
+		addUpkeepText(disp);
 
 		disp.addRadiusHighlight(getSearchRadius());
 		disp.addRadiusHighlight(getRadius(), WORK_RADIUS_COLOUR.rgba(), WORK_RADIUS_FILL_OPACITY);
@@ -250,5 +240,15 @@ public class Farm extends ExclusiveZoneTE implements LabourConsumer, Displayable
 		}
 
 		return disp;
+	}
+
+	@Override
+	public long getBaseUpkeep() {
+		return plantable == null ? 0 : 150;
+	}
+
+	@Override
+	public boolean canDoWork() {
+		return LabourConsumer.super.canDoWork() && !inInvalidTerritory();
 	}
 }

@@ -8,8 +8,11 @@ import kaktusz.geopolitika.Geopolitika;
 import kaktusz.geopolitika.blocks.BlockPermaBase;
 import kaktusz.geopolitika.init.ModConfig;
 import kaktusz.geopolitika.permaloaded.tileentities.*;
+import kaktusz.geopolitika.states.ChunksSavedData;
 import kaktusz.geopolitika.states.StatesManager;
+import kaktusz.geopolitika.states.StatesSavedData;
 import kaktusz.geopolitika.util.Key3;
+import kaktusz.geopolitika.util.MessageUtils;
 import kaktusz.geopolitika.util.PrecalcSpiral;
 import mcp.MethodsReturnNonnullByDefault;
 import net.minecraft.nbt.NBTBase;
@@ -18,6 +21,8 @@ import net.minecraft.nbt.NBTTagList;
 import net.minecraft.nbt.NBTUtil;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.TextComponentString;
 import net.minecraft.world.World;
 import net.minecraft.world.biome.Biome;
 import net.minecraft.world.chunk.Chunk;
@@ -37,14 +42,17 @@ import java.util.stream.Stream;
 public class PermaloadedSavedData extends WorldSavedData {
 	private static final String DATA_NAME = Geopolitika.MODID + "_permaloadedData";
 	public static final Map<Integer, Function<BlockPos, PermaloadedEntity>> entityFactory = new HashMap<>();
+
 	static {
 		entityFactory.put(ExclusiveZoneMarker.ID, ExclusiveZoneMarker::new);
-		entityFactory.put(ChunkResourcesMarker.ID, ChunkResourcesMarker::new);
+		entityFactory.put(ChunkDepositMarker.ID, ChunkDepositMarker::new);
 
 		entityFactory.put(LabourMachineFE.ID, LabourMachineFE::new);
 		entityFactory.putIfAbsent(ExternalModPTE.ID_MACHINE_GT, bp -> new ExternalModPTE(bp, ExternalModPTE.ID_MACHINE_GT));
 	}
 	private static final int LABOUR_TICK_RATE = 5; //a labour tick happens every N ticks
+	private static final int UPKEEP_TICK_RATE = 20*10; //upkeep costs are taken every N ticks (also revenue gained from negative upkeep)
+	private static final int TICKS_PER_HOUR = 20*60*60; //used in combination with upkeep tick rate to scale upkeep costs
 
 	/**
 	 * Register a permaloaded tile entity block and its permaloaded tile entity.
@@ -74,8 +82,7 @@ public class PermaloadedSavedData extends WorldSavedData {
 	}
 
 	public static PermaloadedSavedData get(World world) {
-		MapStorage storage = world.getMapStorage();
-		assert storage != null;
+		MapStorage storage = world.getPerWorldStorage();
 		PermaloadedSavedData instance = (PermaloadedSavedData) storage.getOrLoadData(PermaloadedSavedData.class, DATA_NAME);
 
 		if(instance == null) {
@@ -336,13 +343,13 @@ public class PermaloadedSavedData extends WorldSavedData {
 		if(rng.nextDouble() <= 1.0/ModConfig.chunkResourcesRarity
 				&& !BiomeDictionary.hasType(biome, BiomeDictionary.Type.OCEAN))
 		{
-			if(ChunkResourcesMarker.getResourcesAt(chunk.getPos(), this) == null) { //don't overwrite persisted resources
-				ChunkResourcesMarker resources = addTileEntity(new ChunkResourcesMarker(chunk.getPos()));
+			if(ChunkDepositMarker.getDepositAt(chunk.getPos(), this) == null) { //don't overwrite persisted resources
+				ChunkDepositMarker resources = addTileEntity(new ChunkDepositMarker(chunk.getPos()));
 				resources.initialise(rng);
 				addTileEntity(resources);
 			}
 		} else {
-			removeTileEntityAt(chunk.getPos().getBlock(7, -ChunkResourcesMarker.ID, 7));
+			removeTileEntityAt(chunk.getPos().getBlock(7, -ChunkDepositMarker.ID, 7));
 		}
 
 		//verify PTEs
@@ -360,6 +367,12 @@ public class PermaloadedSavedData extends WorldSavedData {
 		//process labour
 		if(ticker % LABOUR_TICK_RATE == 0) {
 			labourTick();
+		}
+
+		//process upkeep
+		if(ticker % UPKEEP_TICK_RATE == 0) {
+			double factor = UPKEEP_TICK_RATE / (double)TICKS_PER_HOUR;
+			upkeepTick(factor);
 		}
 
 		//tick entities
@@ -459,5 +472,30 @@ public class PermaloadedSavedData extends WorldSavedData {
 		}
 
 		return received;
+	}
+
+	private void upkeepTick(double costFactor) {
+		StatesSavedData statesSavedData = StatesSavedData.get(world);
+
+		StatesManager.getAllStates().forEach(state ->  {
+			long upkeep = getUpkeepCostForState(state.getUID());
+			long trueUpkeep = (long)(upkeep*costFactor);
+			statesSavedData.addBalance(state.getUID(), -trueUpkeep);
+			ITextComponent message = new TextComponentString("Paid " + MessageUtils.CREDITS_FORMAT.format(trueUpkeep) + "cr in upkeep. Balance: " + MessageUtils.CREDITS_FORMAT.format(statesSavedData.getBalance(state.getUID())));
+			MessageUtils.sendMessageToState(state, message);
+		});
+	}
+
+	public long getUpkeepCostForState(short stateId) {
+		ChunksSavedData chunksData = ChunksSavedData.get(world);
+		Collection<ChunkPos> stateChunks = chunksData.getOwnedChunks(stateId);
+		long pteUpkeep = 0;
+		for (ChunkPos chunk : stateChunks) {
+			for (UpkeepPTE upkeepPTE : findTileEntitiesByInterface(UpkeepPTE.class, chunk)) {
+				pteUpkeep += upkeepPTE.getUpkeepCost();
+			}
+		}
+		long chunkUpkeep = stateChunks.size() * ((long)ModConfig.upkeepCostPerChunk);
+		return pteUpkeep + chunkUpkeep;
 	}
 }

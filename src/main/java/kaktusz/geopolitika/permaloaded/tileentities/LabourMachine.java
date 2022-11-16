@@ -4,7 +4,6 @@ import kaktusz.geopolitika.Geopolitika;
 import kaktusz.geopolitika.init.ModConfig;
 import kaktusz.geopolitika.integration.PTEDisplay;
 import kaktusz.geopolitika.states.StatesManager;
-import kaktusz.geopolitika.util.PrecalcSpiral;
 import mcp.MethodsReturnNonnullByDefault;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Blocks;
@@ -28,7 +27,6 @@ import javax.annotation.ParametersAreNonnullByDefault;
 public abstract class LabourMachine<T> extends PermaloadedTileEntity implements LabourConsumer, DisplayablePTE {
 
 	private static final Vec3d RAYTRACE_VECTOR = new Vec3d(0, 0, 0);
-	private PrecalcSpiral labourSpiral;
 	private int reverifyCooldown = 200;
 	private double labourReceived = 0;
 	private String machineName = "Machine";
@@ -101,16 +99,6 @@ public abstract class LabourMachine<T> extends PermaloadedTileEntity implements 
 	@Override
 	public void addLabourReceived(double amount) {
 		labourReceived += amount;
-	}
-
-	@Override
-	public PrecalcSpiral getCachedSpiral() {
-		return labourSpiral;
-	}
-
-	@Override
-	public PrecalcSpiral setCachedSpiral(PrecalcSpiral spiral) {
-		return labourSpiral = spiral;
 	}
 
 	@Override

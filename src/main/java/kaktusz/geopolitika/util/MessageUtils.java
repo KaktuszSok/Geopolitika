@@ -11,9 +11,11 @@ import net.minecraft.util.text.*;
 
 import javax.annotation.Nonnull;
 import javax.annotation.ParametersAreNonnullByDefault;
+import java.text.NumberFormat;
 
 @ParametersAreNonnullByDefault
 public class MessageUtils {
+	public static final NumberFormat CREDITS_FORMAT = NumberFormat.getNumberInstance();
 	public static final Style ERROR_STYLE = new Style().setColor(TextFormatting.RED);
 	public static final Style BOLD_STYLE = new Style().setBold(true);
 	public static final Style DARK_GREY_STYLE = new Style().setColor(TextFormatting.DARK_GRAY);

@@ -29,23 +29,14 @@ public interface LabourConsumer extends PTEInterface {
 	double getLabourReceived();
 	void addLabourReceived(double amount);
 
+	default boolean canDoWork() {
+		return getLabourReceived() >= getLabourPerTick();
+	}
+
 	/**
 	 * How far the consumer should search for suppliers (in chunks, 0 = only own chunk)
 	 */
 	int getSearchRadius();
-
-	PrecalcSpiral getCachedSpiral();
-	PrecalcSpiral setCachedSpiral(PrecalcSpiral spiral);
-	default PrecalcSpiral getOrCreateCachedSpiral() {
-		PrecalcSpiral spiral = getCachedSpiral();
-		if(spiral != null) {
-			return spiral;
-		}
-		return setCachedSpiral(new PrecalcSpiral(
-				((2*getSearchRadius())+1)*((2*getSearchRadius())+1),
-				new ChunkPos(getPermaTileEntity().getPosition())
-		));
-	}
 
 	default PTEDisplay createBasicPTEDisplay(ItemStack icon, String heading) {
 		PTEDisplay display = new PTEDisplay(icon);
@@ -55,7 +46,7 @@ public interface LabourConsumer extends PTEInterface {
 		display.labourContribution = enoughLabour ? (float) -getLabourReceived() : 0;
 		display.idealLabourContribution = (float) -getLabourPerTick();
 
-		if(!enoughLabour) {
+		if(!canDoWork()) {
 			display.tint = 0x55FF0000;
 			display.zOrder = 2;
 		}
@@ -73,31 +64,6 @@ public interface LabourConsumer extends PTEInterface {
 		}
 
 		return "\n" + str;
-	}
-
-	/**
-	 * Consumes labour from nearby suppliers in a single chunk dictated by the step.
-	 * @param step Corresponds to which chunk in our labour spiral we are looking for suppliers in
-	 * @return True if done, i.e. we have consumed enough labour or we have reached the end of the labour spiral
-	 */
-	default boolean consumeLabour(int step) {
-		PrecalcSpiral spiral = getOrCreateCachedSpiral();
-		if(step >= spiral.length || getLabourReceived() >= getLabourPerTick())
-			return true;
-
-		PermaloadedTileEntity permaTE = getPermaTileEntity();
-
-		ChunkPos chunk = spiral.positions[step];
-		Iterator<LabourSupplier> suppliers = permaTE.getSave()
-				.findTileEntitiesByInterface(LabourSupplier.class, chunk).iterator();
-
-		while (suppliers.hasNext() && getLabourReceived() < getLabourPerTick()) {
-			double received = suppliers.next()
-					.requestLabour(getLabourPerTick()-getLabourReceived(), getLabourTier());
-			addLabourReceived(received);
-		}
-
-		return step == spiral.length - 1 || getLabourReceived() >= getLabourPerTick();
 	}
 
 	default void spawnLabourNotReceivedParticles() {

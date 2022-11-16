@@ -21,14 +21,12 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.TextComponentString;
-import net.minecraft.util.text.TextComponentTranslation;
 
 import javax.annotation.Nullable;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class CmdStateStats extends Subcommand {
 
@@ -55,7 +53,10 @@ public class CmdStateStats extends Subcommand {
 		PermaloadedSavedData permaData = PermaloadedSavedData.get(player.world);
 
 		long balance = stateData.getBalance(targetState.getUID());
-		String balanceStr = CmdStateBalance.BALANCE_FORMAT.format(balance);
+		String balanceStr = MessageUtils.CREDITS_FORMAT.format(balance);
+		long upkeep = permaData.getUpkeepCostForState(targetState.getUID());
+		String upkeepStr = MessageUtils.CREDITS_FORMAT.format(upkeep);
+
 		Collection<ChunkPos> stateChunks = chunksData.getOwnedChunks(targetState.getUID());
 		Iterator<LabourSupplier> labourSuppliers = permaData.getLabourSuppliersInChunks(stateChunks).iterator();
 		Iterator<LabourConsumer> labourConsumers = permaData.getLabourConsumersInChunks(stateChunks).iterator();
@@ -79,6 +80,8 @@ public class CmdStateStats extends Subcommand {
 		message.appendSibling(targetState.getCommandTitle()).appendText(":")
 				.appendSibling(new TextComponentString("\n - Balance: ").setStyle(BASE_MESSAGE_STYLE))
 				.appendText(balanceStr + "cr")
+				.appendSibling(new TextComponentString("\n - Upkeep Cost: ").setStyle(BASE_MESSAGE_STYLE))
+				.appendText(upkeepStr + "cr/h")
 				.appendSibling(new TextComponentString("\n - Claimed Territory: ").setStyle(BASE_MESSAGE_STYLE))
 				.appendText(stateChunks.size() + " Chunks")
 				.appendSibling(new TextComponentString("\n - Population (Max. Labour): ").setStyle(BASE_MESSAGE_STYLE))
